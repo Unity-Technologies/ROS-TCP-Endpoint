@@ -5,6 +5,8 @@ import StringIO
 
 from threading import Thread
 
+from TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
+
 
 class ClientThread(Thread):
     """
@@ -118,9 +120,14 @@ class ClientThread(Thread):
             print("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
-        ros_communicator = self.source_destination_dict[destination]
+        if destination not in self.source_destination_dict.keys():
+            error_msg = "Topic/Service destination '{}' does not exist in source destination dictionary {} "\
+                .format(destination, self.source_destination_dict.keys())
+            self.conn.close()
+            raise TopicOrServiceNameDoesNotExistError(error_msg)
 
         try:
+            ros_communicator = self.source_destination_dict[destination]
             response = ros_communicator.send(data)
 
             # Responses only exist for services
