@@ -4,8 +4,8 @@ import StringIO
 import rospy
 import socket
 
-from RosCommunication import RosReceiver
-from RosTCPClientThread import ClientThread
+from tcp_endpoint.RosCommunication import RosReceiver
+from tcp_endpoint.RosTCPClientThread import ClientThread
 
 
 class RosSubscriber(RosReceiver):

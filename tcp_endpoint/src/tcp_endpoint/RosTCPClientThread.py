@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import struct
-import StringIO
+from io import BytesIO
 
 from threading import Thread
 
-from TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
+from tcp_endpoint.TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
 
 
 class ClientThread(Thread):
@@ -75,10 +75,17 @@ class ClientThread(Thread):
         length = len(dest_bytes)
         dest_info = struct.pack('<I%ss' % length, length, dest_bytes)
 
-        serial_response = StringIO.StringIO()
+        serial_response = BytesIO()
         message.serialize(serial_response)
 
-        msg_length = struct.pack('<I', serial_response.len)
+        # Per documention, https://docs.python.org/3.8/library/io.html#io.IOBase.seek,
+        # seek to end of stream for length
+        # SEEK_SET or 0 – start of the stream (the default); offset should be zero or positive
+        # SEEK_CUR or 1 – current stream position; offset may be negative
+        # SEEK_END or 2 – end of the stream; offset is usually negative
+        response_len = serial_response.seek(0, 2)
+
+        msg_length = struct.pack('<I', response_len)
         serialized_message = dest_info + msg_length + serial_response.getvalue()
 
         return serialized_message
@@ -100,7 +107,7 @@ class ClientThread(Thread):
             msg: the ROS msg type as bytes
 
         """
-        data = ""
+        data = b''
 
         destination = self.read_string()
         full_message_size = self.read_int32()

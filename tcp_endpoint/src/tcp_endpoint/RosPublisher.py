@@ -2,7 +2,7 @@
 
 import rospy
 
-from RosCommunication import RosSender
+from tcp_endpoint.RosCommunication import RosSender
 
 
 class RosPublisher(RosSender):

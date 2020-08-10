@@ -3,7 +3,7 @@
 import rospy
 
 from rospy.service import ServiceException
-from RosCommunication import RosSender
+from tcp_endpoint.RosCommunication import RosSender
 
 
 class RosService(RosSender):
