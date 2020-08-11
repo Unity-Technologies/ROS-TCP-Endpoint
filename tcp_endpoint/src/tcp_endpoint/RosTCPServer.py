@@ -3,7 +3,7 @@
 import rospy
 import socket
 
-from RosTCPClientThread import ClientThread
+from tcp_endpoint.RosTCPClientThread import ClientThread
 
 class TCPServer:
     """
