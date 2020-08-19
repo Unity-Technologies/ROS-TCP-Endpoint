@@ -34,10 +34,11 @@ class ClientThread(Thread):
         try:
             raw_bytes = self.conn.recv(4)
             num = struct.unpack('<I', raw_bytes)[0]
+            return num
         except Exception as e:
-            print("No data to pull....{}".format(e))
+            print("Unable to read integer from connection. {}".format(e))
 
-        return num
+        return None
 
     def read_string(self):
         """
@@ -54,10 +55,12 @@ class ClientThread(Thread):
             str_bytes = self.conn.recv(str_len)
             decoded_str = str_bytes.decode('utf-8')
 
-        except Exception as e:
-            print("No data to pull....{}".format(e))
+            return decoded_str
 
-        return decoded_str
+        except Exception as e:
+            print("Unable to read string from connection. {}".format(e))
+
+        return None
 
     @staticmethod
     def serialize_message(destination, message):
@@ -80,9 +83,9 @@ class ClientThread(Thread):
 
         # Per documention, https://docs.python.org/3.8/library/io.html#io.IOBase.seek,
         # seek to end of stream for length
-        # SEEK_SET or 0 – start of the stream (the default); offset should be zero or positive
-        # SEEK_CUR or 1 – current stream position; offset may be negative
-        # SEEK_END or 2 – end of the stream; offset is usually negative
+        # SEEK_SET or 0 - start of the stream (the default); offset should be zero or positive
+        # SEEK_CUR or 1 - current stream position; offset may be negative
+        # SEEK_END or 2 - end of the stream; offset is usually negative
         response_len = serial_response.seek(0, 2)
 
         msg_length = struct.pack('<I', response_len)
