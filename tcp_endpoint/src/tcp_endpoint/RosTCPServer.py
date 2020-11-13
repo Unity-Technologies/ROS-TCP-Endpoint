@@ -4,13 +4,14 @@ import rospy
 import socket
 
 from tcp_endpoint.RosTCPClientThread import ClientThread
+from tcp_endpoint.RosUnityHandshakeService import RosUnityHandshakeService
 
 class TCPServer:
     """
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, tcp_ip, tcp_port, node_name, source_destination_dict, buffer_size=1024, connections=10):
+    def __init__(self, tcp_ip, tcp_port, unity_tcp_sender, node_name, source_destination_dict, buffer_size=1024, connections=10):
         """
         Initializes ROS node and class variables.
 
@@ -24,8 +25,12 @@ class TCPServer:
         """
         self.tcp_ip = tcp_ip
         self.tcp_port = tcp_port
+        self.unity_tcp_sender = unity_tcp_sender
         self.node_name = node_name
         self.source_destination_dict = source_destination_dict
+        self.special_destination_dict = {
+            '__handshake': RosUnityHandshakeService(unity_tcp_sender)
+        }
         self.buffer_size = buffer_size
         self.connections = connections
 
@@ -44,9 +49,12 @@ class TCPServer:
             tcp_server.listen(self.connections)
 
             (conn, (ip, port)) = tcp_server.accept()
-            new_thread = ClientThread(conn, self.source_destination_dict)
+            new_thread = ClientThread(conn, self, ip, port)
             new_thread.start()
             threads.append(new_thread)
 
         for t in threads:
             t.join()
+
+    def send_unity_error(self, error):
+        self.unity_tcp_sender.send_unity_error(error)
