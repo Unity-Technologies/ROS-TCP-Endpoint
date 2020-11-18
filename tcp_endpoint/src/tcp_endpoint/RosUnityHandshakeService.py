@@ -5,13 +5,12 @@ from tcp_endpoint.srv import RosUnityHandshake, RosUnityHandshakeResponse
 
 class RosUnityHandshakeService:
     """
-    Class to handle system messages.
+    Class to auto-detect Unity IP.
     """
     def __init__(self, tcp_sender):
         """
         Args:
-            service:        The service name in ROS
-            service_class:  The service class in catkin workspace
+            tcp_sender:     sends messages to Unity
         """
         self.srv_class = RosUnityHandshake._request_class()
         self.tcp_sender = tcp_sender

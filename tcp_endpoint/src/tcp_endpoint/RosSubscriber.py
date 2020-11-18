@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import StringIO
 
 import rospy
 import socket
@@ -13,7 +12,7 @@ class RosSubscriber(RosReceiver):
     Class to send messages outside of ROS network
     """
 
-    def __init__(self, topic, message_class, tcp_sender, queue_size=10):
+    def __init__(self, topic, message_class, tcp_server, queue_size=10):
         """
 
         Args:
@@ -24,7 +23,7 @@ class RosSubscriber(RosReceiver):
         self.topic = topic
         self.node_name = "{}_subsciber".format(topic)
         self.msg = message_class
-        self.tcp_sender = tcp_sender
+        self.tcp_server = tcp_server
         self.queue_size = queue_size
 
         # Start Subscriber listener function
@@ -41,7 +40,7 @@ class RosSubscriber(RosReceiver):
 
         """
 
-        self.tcp_sender.send_unity_message(self.topic, data)
+        self.tcp_server.send_unity_message(self.topic, data)
         return self.msg
 
     def listener(self):
