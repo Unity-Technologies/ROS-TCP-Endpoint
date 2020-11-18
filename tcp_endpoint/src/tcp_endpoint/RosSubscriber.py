@@ -12,7 +12,7 @@ class RosSubscriber(RosReceiver):
     Class to send messages outside of ROS network
     """
 
-    def __init__(self, topic, message_class, server_ip, server_port, queue_size=10):
+    def __init__(self, topic, message_class, tcp_server, queue_size=10):
         """
 
         Args:
@@ -23,8 +23,7 @@ class RosSubscriber(RosReceiver):
         self.topic = topic
         self.node_name = "{}_subsciber".format(topic)
         self.msg = message_class
-        self.tcp_id = server_ip
-        self.tcp_port = server_port
+        self.tcp_server = tcp_server
         self.queue_size = queue_size
 
         # Start Subscriber listener function
@@ -41,16 +40,7 @@ class RosSubscriber(RosReceiver):
 
         """
 
-        serialized_message = ClientThread.serialize_message(self.topic, data)
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.tcp_id, self.tcp_port))
-            s.send(serialized_message)
-            s.close()
-        except Exception as e:
-            rospy.loginfo("Exception {}".format(e))
-
+        self.tcp_server.send_unity_message(self.topic, data)
         return self.msg
 
     def listener(self):
