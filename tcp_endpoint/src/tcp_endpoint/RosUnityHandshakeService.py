@@ -17,8 +17,8 @@ class RosUnityHandshakeService:
         self.incoming_ip = ''
 
     # The client thread lets us know what the incoming IP is, so we can use it later
-    def set_thread(self, tcp_client_thread):
-        self.incoming_ip = tcp_client_thread.incoming_ip
+    def set_incoming_ip(self, ip):
+        self.incoming_ip = ip
 
     def send(self, data):
         message = self.srv_class.deserialize(data)
