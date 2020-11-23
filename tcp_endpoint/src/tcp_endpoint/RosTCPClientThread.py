@@ -142,7 +142,6 @@ class ClientThread(Thread):
                 raise TopicOrServiceNameDoesNotExistError(error_msg)
             else:
                 ros_communicator = self.tcp_server.special_destination_dict[destination]
-                # this feels pretty hacky...
                 ros_communicator.set_thread(self)
         elif destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
