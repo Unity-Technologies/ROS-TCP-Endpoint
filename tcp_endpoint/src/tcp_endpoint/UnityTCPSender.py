@@ -10,12 +10,13 @@ class UnityTCPSender:
     def __init__(self, unity_ip, unity_port):
         self.unity_ip = unity_ip
         self.unity_port = unity_port
+        # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
 
     def process_handshake(self, ip, port):
         self.unity_port = port
         if ip != '' and not self.ip_is_overridden:
-            self.unity_ip = ip
+            self.unity_ip = ip # hello Unity, we'll talk to you from now on
         print("ROS-Unity Handshake received, will connect to {}:{}".format(self.unity_ip, self.unity_port))
 
     def send_unity_error(self, error):
@@ -37,4 +38,3 @@ class UnityTCPSender:
             s.close()
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
-            # print("Failed to send unity message {} {} to {}:{}".format(topic, message, self.unity_ip, self.unity_port))
