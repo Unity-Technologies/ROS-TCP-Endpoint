@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
 import struct
+import socket
+import rospy
 from io import BytesIO
 
 from threading import Thread
 
 from tcp_endpoint.TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
 
-
 class ClientThread(Thread):
     """
     Thread class to read all data from a connection and pass along the data to the
     desired source.
     """
-    def __init__(self, conn, source_destination_dict):
+    def __init__(self, conn, tcp_server, incoming_ip, incoming_port):
         """
         Set class variables
         Args:
@@ -22,7 +23,9 @@ class ClientThread(Thread):
         """
         Thread.__init__(self)
         self.conn = conn
-        self.source_destination_dict = source_destination_dict
+        self.tcp_server = tcp_server
+        self.incoming_ip = incoming_ip
+        self.incoming_port = incoming_port
 
     def read_int32(self):
         """
@@ -130,14 +133,26 @@ class ClientThread(Thread):
             print("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
-        if destination not in self.source_destination_dict.keys():
-            error_msg = "Topic/Service destination '{}' does not exist in source destination dictionary {} "\
-                .format(destination, self.source_destination_dict.keys())
+        if destination.startswith('__'):
+            if destination not in self.tcp_server.special_destination_dict.keys():
+                error_msg = "System message '{}' is undefined! Known system calls are: {}"\
+                    .format(destination, self.tcp_server.special_destination_dict.keys())
+                self.conn.close()
+                self.tcp_server.send_unity_error(error_msg)
+                raise TopicOrServiceNameDoesNotExistError(error_msg)
+            else:
+                ros_communicator = self.tcp_server.special_destination_dict[destination]
+                ros_communicator.set_incoming_ip(self.incoming_ip)
+        elif destination not in self.tcp_server.source_destination_dict.keys():
+            error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
+                .format(destination, self.tcp_server.source_destination_dict.keys())
             self.conn.close()
+            self.tcp_server.send_unity_error(error_msg)
             raise TopicOrServiceNameDoesNotExistError(error_msg)
+        else:
+            ros_communicator = self.tcp_server.source_destination_dict[destination]
 
         try:
-            ros_communicator = self.source_destination_dict[destination]
             response = ros_communicator.send(data)
 
             # Responses only exist for services
