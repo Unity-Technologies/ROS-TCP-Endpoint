@@ -21,6 +21,7 @@ from threading import Thread
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
 
+
 class ClientThread(Thread):
     """
     Thread class to read all data from a connection and pass along the data to the
@@ -154,7 +155,7 @@ class ClientThread(Thread):
                 raise TopicOrServiceNameDoesNotExistError(error_msg)
             else:
                 ros_communicator = self.tcp_server.special_destination_dict[destination]
-                ros_communicator.set_incoming_ip(self.incoming_ip)
+                ros_communicator.incoming_ip = self.incoming_ip
         elif destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
                 .format(destination, self.tcp_server.source_destination_dict.keys())

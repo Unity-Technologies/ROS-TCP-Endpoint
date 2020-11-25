@@ -15,10 +15,9 @@
 import rospy
 import socket
 
-from tcp_endpoint.UnityTCPSender import UnityTCPSender
-from tcp_endpoint.RosTCPClientThread import ClientThread
-from tcp_endpoint.RosUnityHandshakeService import RosUnityHandshakeService
+from .unity_ip_sender import UnityIPSender
 from .client import ClientThread
+from .unity_monitor import UnityMonitor
 
 
 class TCPServer:
@@ -43,12 +42,12 @@ class TCPServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTCPSender(unity_machine_ip, unity_machine_port)
+        self.unity_tcp_sender = UnityIPSender(unity_machine_ip, unity_machine_port)
 
         self.node_name = node_name
         self.source_destination_dict = {}
         self.special_destination_dict = {
-            '__handshake': RosUnityHandshakeService(self.unity_tcp_sender)
+            '__handshake': UnityMonitor(self.unity_tcp_sender)
         }
         self.buffer_size = buffer_size
         self.connections = connections
