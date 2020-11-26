@@ -124,12 +124,11 @@ class ClientThread(Thread):
             try:
                 response = self.conn.send("")
             except Exception as e:
+                self.conn.close()
                 print("Connection closed ? Exception Raised: {}".format(e))
                 return
             
             data = b''
-
-           
 
             destination = self.read_string()
             full_message_size = self.read_int32()
@@ -149,6 +148,7 @@ class ClientThread(Thread):
 
             if not data:
                 print("No data for a message size of {}, breaking!".format(full_message_size))
+                self.conn.close()
                 return
 
             if destination.startswith('__'):
