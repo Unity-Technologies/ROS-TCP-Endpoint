@@ -15,6 +15,7 @@
 import rospy
 import socket
 
+from rospy.msg import AnyMsg
 from .communication import RosReceiver
 from .client import ClientThread
 
@@ -24,7 +25,7 @@ class RosSubscriber(RosReceiver):
     Class to send messages outside of ROS network
     """
 
-    def __init__(self, topic, message_class, tcp_server, queue_size=10):
+    def __init__(self, topic, tcp_server, queue_size=10):
         """
 
         Args:
@@ -34,8 +35,7 @@ class RosSubscriber(RosReceiver):
         """
         RosReceiver.__init__(self)
         self.topic = topic
-        self.node_name = "{}_subsciber".format(topic)
-        self.msg = message_class
+        self.node_name = "{}_subscriber".format(topic)
         self.tcp_server = tcp_server
         self.queue_size = queue_size
 
@@ -49,12 +49,11 @@ class RosSubscriber(RosReceiver):
             data: message data to send outside of ROS network
 
         Returns:
-            self.msg: The deserialize message
-
+            None
         """
 
         self.tcp_server.send_unity_message(self.topic, data)
-        return self.msg
+        return None
 
     def listener(self):
         """
@@ -62,4 +61,4 @@ class RosSubscriber(RosReceiver):
         Returns:
 
         """
-        rospy.Subscriber(self.topic, self.msg, self.send)
+        rospy.Subscriber(self.topic, AnyMsg, self.send)

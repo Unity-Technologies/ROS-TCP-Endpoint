@@ -14,11 +14,14 @@
 
 import rospy
 import socket
+import json
+import sys
 
 from .unity_ip_sender import UnityIPSender
 from .client import ClientThread
-from .unity_monitor import UnityMonitor
-
+from .subscriber import RosSubscriber
+from .publisher import RosPublisher
+from ros_tcp_endpoint.msg import RosUnitySysCommand
 
 class TCPServer:
     """
@@ -46,9 +49,6 @@ class TCPServer:
 
         self.node_name = node_name
         self.source_destination_dict = {}
-        self.special_destination_dict = {
-            '__handshake': UnityMonitor(self.unity_tcp_sender)
-        }
         self.buffer_size = buffer_size
         self.connections = connections
 
@@ -80,3 +80,25 @@ class TCPServer:
 
     def send_unity_message(self, topic, message):
         self.unity_tcp_sender.send_unity_message(topic, message)
+
+    def handle_syscommand(self, data):
+        message = RosUnitySysCommand().deserialize(data)
+        params = json.loads(message.params_json)
+        if(message.command == 'subscribe'):
+            topic = params['topic']
+            self.source_destination_dict[topic] = RosSubscriber(topic, self)
+        elif(message.command == 'publish'):
+            topic = params['topic']
+            msgclass = self.resolve_classname(params['msgclass'])
+            self.source_destination_dict[topic] = RosPublisher(topic, msgclass, queue_size=10)
+        else:
+            self.unity_tcp_sender.send_unity_error("Unknown system command {}".format(message.command))
+
+    def resolve_classname(self, name):
+        module = None
+        for subname in name.split('.'):
+            if module == None:
+                module = sys.modules[subname]
+            else:
+                module = getattr(module, subname)
+        return module
