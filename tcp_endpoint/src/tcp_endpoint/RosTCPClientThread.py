@@ -9,6 +9,7 @@ from io import BytesIO
 from threading import Thread
 
 from tcp_endpoint.TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
+from tcp_endpoint.msg import RosUnityConnectionParam
 
 class ClientThread(Thread):
     """
@@ -25,10 +26,26 @@ class ClientThread(Thread):
         Thread.__init__(self)
         self.conn = conn
         self.tcp_server = tcp_server
+        self.keep_connection_open = False
         self.incoming_ip = incoming_ip
         self.incoming_port = incoming_port
-        self.conn.setblocking(0)
         self.timeout_in_seconds = 5
+
+    def read(self, size):
+        """
+        Reads the given number of bytes from socket connection
+
+        Returns: red bytes
+
+        """
+        if self.keep_connection_open:
+            ready = select.select([self.conn], [], [], self.timeout_in_seconds)
+            if ready[0]:
+                return self.conn.recv(size)
+        else:
+            return self.conn.recv(size)
+            
+        return None
 
     def read_int32(self):
         """
@@ -38,11 +55,9 @@ class ClientThread(Thread):
 
         """
         try:
-            ready = select.select([self.conn], [], [], self.timeout_in_seconds)
-            if ready[0]:
-                raw_bytes = self.conn.recv(4)
-                num = struct.unpack('<I', raw_bytes)[0]
-                return num
+            raw_bytes = self.read(4)
+            num = struct.unpack('<I', raw_bytes)[0]
+            return num
         except Exception as e:
             print("Unable to read integer from connection. {}".format(e))
 
@@ -59,13 +74,9 @@ class ClientThread(Thread):
         """
         try:
             str_len = self.read_int32()
-            ready = select.select([self.conn], [], [], self.timeout_in_seconds)
-            if ready[0]:
-                str_bytes = self.conn.recv(str_len)
-                decoded_str = str_bytes.decode('utf-8')
-
-                return decoded_str
-
+            str_bytes = self.read(str_len)
+            decoded_str = str_bytes.decode('utf-8')
+            return decoded_str
         except Exception as e:
             print("Unable to read string from connection. {}".format(e))
 
@@ -121,12 +132,14 @@ class ClientThread(Thread):
         """
 
         while True:
-            try:
-                response = self.conn.send("")
-            except Exception as e:
-                self.conn.close()
-                print("Connection closed ? Exception Raised: {}".format(e))
-                return
+            # check that the connection is still alive
+            if self.keep_connection_open:
+                try:
+                    response = self.conn.send("")
+                except Exception as e:
+                    self.conn.close()
+                    print("Connection closed ? Exception Raised: {}".format(e))
+                    return
             
             data = b''
 
@@ -136,26 +149,31 @@ class ClientThread(Thread):
             while len(data) < full_message_size:
                 # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
                 grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-                ready = select.select([self.conn], [], [], self.timeout_in_seconds)
-                if ready[0]:
-                    packet = self.conn.recv(grab)
+                packet = self.read(grab)
 
-                    if not packet:
-                        print("No packets...")
-                        break
+                if not packet:
+                    print("No packets...")
+                    break
 
-                    data += packet
+                data += packet
 
             if not data:
                 print("No data for a message size of {}, breaking!".format(full_message_size))
-                self.conn.close()
+                if not self.keep_connection_open:
+                    self.conn.close()
                 return
 
-            if destination.startswith('__'):
+            if destination == '__connection_param':
+                parameters = RosUnityConnectionParam().deserialize(data)
+                self.keep_connection_open = parameters.keepConnectionOpen
+                print("Received connection parameters. Will keep connection Opened ? : {}".format(self.keep_connection_open))
+                continue
+            elif destination.startswith('__'):
                 if destination not in self.tcp_server.special_destination_dict.keys():
                     error_msg = "System message '{}' is undefined! Known system calls are: {}"\
                         .format(destination, self.tcp_server.special_destination_dict.keys())
-                    self.conn.close()
+                    if not self.keep_connection_open:
+                        self.conn.close()
                     self.tcp_server.send_unity_error(error_msg)
                     raise TopicOrServiceNameDoesNotExistError(error_msg)
                 else:
@@ -164,7 +182,8 @@ class ClientThread(Thread):
             elif destination not in self.tcp_server.source_destination_dict.keys():
                 error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
                     .format(destination, self.tcp_server.source_destination_dict.keys())
-                self.conn.close()
+                if not self.keep_connection_open:
+                    self.conn.close()
                 self.tcp_server.send_unity_error(error_msg)
                 raise TopicOrServiceNameDoesNotExistError(error_msg)
             else:
@@ -179,5 +198,7 @@ class ClientThread(Thread):
                     self.conn.send(response_message)
             except Exception as e:
                 print("Exception Raised: {}".format(e))
-        # finally:
-            #self.conn.close()
+            finally:
+                if not self.keep_connection_open:
+                    self.conn.close()
+                    return

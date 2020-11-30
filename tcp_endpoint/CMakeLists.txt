@@ -51,6 +51,7 @@ catkin_python_setup()
 add_message_files(
   FILES
   RosUnityError.msg
+  RosUnityConnectionParam.msg
 )
 
 ## Generate services in the 'srv' folder
