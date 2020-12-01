@@ -33,10 +33,7 @@ class TCPServer:
         Initializes ROS node and class variables.
 
         Args:
-            tcp_ip:                  The IP used to host the TCP server
-            tcp_port:                The port that should be used for incoming connections
             node_name:               ROS node name for executing code
-            source_destination_dict: Dictionary of source name to instantiated RosCommunication classes
             buffer_size:             The read buffer size used when reading from a socket
             connections:             Max number of queued connections. See Python Socket documentation
         """
@@ -84,21 +81,33 @@ class TCPServer:
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
         params = json.loads(message.params_json)
-        if(message.command == 'subscribe'):
+        if message.command == 'subscribe':
             topic = params['topic']
-            self.source_destination_dict[topic] = RosSubscriber(topic, self)
-        elif(message.command == 'publish'):
-            topic = params['topic']
-            msgclass = self.resolve_classname(params['msgclass'])
-            self.source_destination_dict[topic] = RosPublisher(topic, msgclass, queue_size=10)
-        else:
-            self.unity_tcp_sender.send_unity_error("Unknown system command {}".format(message.command))
-
-    def resolve_classname(self, name):
-        module = None
-        for subname in name.split('.'):
-            if module == None:
-                module = sys.modules[subname]
+            if topic == '':
+                self.send_unity_error("Can't subscribe to a blank topic name! RegisterSubscriber {}".format(message.params_json))
             else:
-                module = getattr(module, subname)
+                self.source_destination_dict[topic] = RosSubscriber(topic, self)
+        elif message.command == 'publish':
+            topic = params['topic']
+            message_name = params['message_name']
+            if topic == '':
+                self.send_unity_error("Can't publish to a blank topic name! RegisterPublisher {}".format(message.params_json))
+            else:
+                message_class = resolve_message_name(message_name)
+                if message_class is None:
+                    self.send_unity_error("Unknown message class {} {} {}".format(message_name, message_class, message_class is None))
+                else:
+                    self.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
+        else:
+            self.send_unity_error("Unknown system command {}".format(message.command))
+
+
+def resolve_message_name(name):
+    try:
+        names = name.split('/')
+        module = sys.modules[names[0]]
+        module = getattr(module, 'msg')
+        module = getattr(module, names[1])
         return module
+    except (KeyError, AttributeError) as e:
+        return None
