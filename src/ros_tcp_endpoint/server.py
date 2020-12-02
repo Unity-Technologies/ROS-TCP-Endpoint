@@ -48,6 +48,7 @@ class TCPServer:
         self.source_destination_dict = {}
         self.buffer_size = buffer_size
         self.connections = connections
+        self.syscommands = SysCommands(self)
 
     def start(self):
         """
@@ -67,7 +68,7 @@ class TCPServer:
             new_thread = ClientThread(conn, self, ip, port)
             new_thread.start()
             threads.append(new_thread)
-        
+
         # Unreachable statements:
         # for t in threads:
         #    t.join()
@@ -80,26 +81,44 @@ class TCPServer:
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
-        params = json.loads(message.params_json)
-        if message.command == 'subscribe':
-            topic = params['topic']
-            if topic == '':
-                self.send_unity_error("Can't subscribe to a blank topic name! RegisterSubscriber {}".format(message.params_json))
-            else:
-                self.source_destination_dict[topic] = RosSubscriber(topic, self)
-        elif message.command == 'publish':
-            topic = params['topic']
-            message_name = params['message_name']
-            if topic == '':
-                self.send_unity_error("Can't publish to a blank topic name! RegisterPublisher {}".format(message.params_json))
-            else:
-                message_class = resolve_message_name(message_name)
-                if message_class is None:
-                    self.send_unity_error("Unknown message class {} {} {}".format(message_name, message_class, message_class is None))
-                else:
-                    self.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
+        function = getattr(self.syscommands, message.command)
+        if function is None:
+            self.send_unity_error("Don't understand SysCommand.'{}'({})".format(message.command, message.params_json))
+            return
         else:
-            self.send_unity_error("Unknown system command {}".format(message.command))
+            params = json.loads(message.params_json)
+            function(**params)
+
+
+class SysCommands:
+    def __init__(self, tcp_server):
+        self.tcp_server = tcp_server
+
+    def subscribe(self, topic, message_name):
+        if topic == '':
+            self.tcp_server.send_unity_error(
+                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(topic, message_name))
+            return
+
+        message_class = resolve_message_name(message_name)
+        if message_class is None:
+            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class {}".format(message_name))
+            return
+
+        self.tcp_server.source_destination_dict[topic] = RosSubscriber(topic, message_class, self.tcp_server)
+
+    def publish(self, topic, message_name):
+        if topic == '':
+            self.tcp_server.send_unity_error(
+                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(topic, message_name))
+            return
+
+        message_class = resolve_message_name(message_name)
+        if message_class is None:
+            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class {}".format(message_name))
+            return
+
+        self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
 
 
 def resolve_message_name(name):

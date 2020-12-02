@@ -15,7 +15,6 @@
 import rospy
 import socket
 
-from rospy.msg import AnyMsg
 from .communication import RosReceiver
 from .client import ClientThread
 
@@ -25,7 +24,7 @@ class RosSubscriber(RosReceiver):
     Class to send messages outside of ROS network
     """
 
-    def __init__(self, topic, tcp_server, queue_size=10):
+    def __init__(self, topic, message_class, tcp_server, queue_size=10):
         """
 
         Args:
@@ -33,9 +32,9 @@ class RosSubscriber(RosReceiver):
             message_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        RosReceiver.__init__(self)
         self.topic = topic
-        self.node_name = "{}_subscriber".format(topic)
+        self.node_name = "{}_subsciber".format(topic)
+        self.msg = message_class
         self.tcp_server = tcp_server
         self.queue_size = queue_size
 
@@ -49,11 +48,12 @@ class RosSubscriber(RosReceiver):
             data: message data to send outside of ROS network
 
         Returns:
-            None
+            self.msg: The deserialize message
+
         """
 
         self.tcp_server.send_unity_message(self.topic, data)
-        return None
+        return self.msg
 
     def listener(self):
         """
@@ -61,4 +61,4 @@ class RosSubscriber(RosReceiver):
         Returns:
 
         """
-        rospy.Subscriber(self.topic, AnyMsg, self.send)
+        rospy.Subscriber(self.topic, self.msg, self.send)
