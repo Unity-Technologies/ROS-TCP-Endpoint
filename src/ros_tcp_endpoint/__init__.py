@@ -15,5 +15,5 @@
 from .publisher import RosPublisher
 from .subscriber import RosSubscriber
 from .service import RosService
-from .server import TCPServer
+from .server import TcpServer
 

@@ -34,7 +34,7 @@ class RosSubscriber(RosReceiver):
         """
         RosReceiver.__init__(self)
         self.topic = topic
-        self.node_name = "{}_subsciber".format(topic)
+        self.node_name = "{}_subscriber".format(topic)
         self.msg = message_class
         self.tcp_server = tcp_server
         self.queue_size = queue_size

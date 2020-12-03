@@ -18,7 +18,7 @@ from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
 
 
-class UnityIPSender:
+class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
