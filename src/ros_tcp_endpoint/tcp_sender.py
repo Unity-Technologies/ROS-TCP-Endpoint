@@ -19,7 +19,7 @@ from ros_tcp_endpoint.msg import RosUnityError
 from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
 
 
-class UnityIPSender:
+class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """

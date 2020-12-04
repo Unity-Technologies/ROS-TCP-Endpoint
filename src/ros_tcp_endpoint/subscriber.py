@@ -33,7 +33,7 @@ class RosSubscriber(RosReceiver):
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
         self.topic = topic
-        self.node_name = "{}_subsciber".format(topic)
+        self.node_name = "{}_subscriber".format(topic)
         self.msg = message_class
         self.tcp_server = tcp_server
         self.queue_size = queue_size
