@@ -105,6 +105,7 @@ class SysCommands:
             self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class {}".format(message_name))
             return
 
+        print("RegisterSubscriber({}, {}) OK".format(topic, message_class))
         self.tcp_server.source_destination_dict[topic] = RosSubscriber(topic, message_class, self.tcp_server)
 
     def publish(self, topic, message_name):
@@ -118,6 +119,7 @@ class SysCommands:
             self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class {}".format(message_name))
             return
 
+        print("RegisterPublisher({}, {}) OK".format(topic, message_class))
         self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
 
 
@@ -125,8 +127,14 @@ def resolve_message_name(name):
     try:
         names = name.split('/')
         module = sys.modules[names[0]]
+        if module is None:
+            print("Failed to resolve module", names[0])
         module = getattr(module, 'msg')
+        if module is None:
+            print("Failed to resolve module.msg", names[0])
         module = getattr(module, names[1])
+        if module is None:
+            print("Failed to resolve {}.msg.{}".format(names[0], names[1]))
         return module
     except (KeyError, AttributeError) as e:
         return None
