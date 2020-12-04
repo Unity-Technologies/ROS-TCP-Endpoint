@@ -11,11 +11,11 @@ import stereo_msgs.msg
 import trajectory_msgs.msg
 import visualization_msgs.msg
 
-from ros_tcp_endpoint import TCPServer
+from ros_tcp_endpoint import TcpServer
 
 def main():
     ros_node_name = rospy.get_param("/TCP_NODE_NAME", 'TCPServer')
-    tcp_server = TCPServer(ros_node_name)
+    tcp_server = TcpServer(ros_node_name)
 
     # Start the Server Endpoint
     rospy.init_node(ros_node_name, anonymous=True)
