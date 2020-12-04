@@ -102,7 +102,7 @@ class SysCommands:
 
         message_class = resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class {}".format(message_name))
+            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
             return
 
         print("RegisterSubscriber({}, {}) OK".format(topic, message_class))
@@ -116,7 +116,7 @@ class SysCommands:
 
         message_class = resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class {}".format(message_name))
+            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class '{}'".format(message_name))
             return
 
         print("RegisterPublisher({}, {}) OK".format(topic, message_class))
@@ -126,15 +126,17 @@ class SysCommands:
 def resolve_message_name(name):
     try:
         names = name.split('/')
-        module = sys.modules[names[0]]
+        module_name = names[0]
+        class_name = names[1]
+        module = sys.modules[module_name]
         if module is None:
-            print("Failed to resolve module", names[0])
+            print("Failed to resolve module {}".format(module_name))
         module = getattr(module, 'msg')
         if module is None:
-            print("Failed to resolve module.msg", names[0])
-        module = getattr(module, names[1])
+            print("Failed to resolve module {}.msg".format(module_name))
+        module = getattr(module, class_name)
         if module is None:
-            print("Failed to resolve {}.msg.{}".format(names[0], names[1]))
+            print("Failed to resolve module {}.msg.{}".format(module_name, class_name))
         return module
-    except (KeyError, AttributeError) as e:
+    except (IndexError, KeyError, AttributeError) as e:
         return None
