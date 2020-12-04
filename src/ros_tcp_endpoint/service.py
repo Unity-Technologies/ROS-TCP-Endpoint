@@ -1,9 +1,21 @@
-#!/usr/bin/env python
+#  Copyright 2020 Unity Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
 import rospy
-
 from rospy.service import ServiceException
-from tcp_endpoint.RosCommunication import RosSender
+
+from .communication import RosSender
 
 
 class RosService(RosSender):
@@ -16,6 +28,7 @@ class RosService(RosSender):
             service:        The service name in ROS
             service_class:  The service class in catkin workspace
         """
+        RosSender.__init__(self)
         self.srv_class = service_class._request_class()
         self.srv = rospy.ServiceProxy(service, service_class)
 

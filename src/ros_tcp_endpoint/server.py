@@ -1,13 +1,26 @@
-#!/usr/bin/env python
+#  Copyright 2020 Unity Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
 import rospy
 import socket
 
-from tcp_endpoint.UnityTCPSender import UnityTCPSender
-from tcp_endpoint.RosTCPClientThread import ClientThread
-from tcp_endpoint.RosUnityHandshakeService import RosUnityHandshakeService
+from .tcp_sender import UnityTcpSender
+from .client import ClientThread
+from .unity_monitor import UnityMonitor
 
-class TCPServer:
+
+class TcpServer:
     """
     Initializes ROS node and TCP server.
     """
@@ -29,12 +42,12 @@ class TCPServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTCPSender(unity_machine_ip, unity_machine_port)
+        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port)
 
         self.node_name = node_name
         self.source_destination_dict = {}
         self.special_destination_dict = {
-            '__handshake': RosUnityHandshakeService(self.unity_tcp_sender)
+            '__handshake': UnityMonitor(self.unity_tcp_sender)
         }
         self.buffer_size = buffer_size
         self.connections = connections
@@ -57,9 +70,10 @@ class TCPServer:
             new_thread = ClientThread(conn, self, ip, port)
             new_thread.start()
             threads.append(new_thread)
-
-        for t in threads:
-            t.join()
+        
+        # Unreachable statements:
+        # for t in threads:
+        #    t.join()
 
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)

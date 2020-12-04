@@ -1,9 +1,24 @@
+#  Copyright 2020 Unity Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import rospy
 import socket
-from tcp_endpoint.RosTCPClientThread import ClientThread
-from tcp_endpoint.msg import RosUnityError
+from .client import ClientThread
+from ros_tcp_endpoint.msg import RosUnityError
 
-class UnityTCPSender:
+
+class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
@@ -16,7 +31,8 @@ class UnityTCPSender:
     def process_handshake(self, ip, port):
         self.unity_port = port
         if ip != '' and not self.ip_is_overridden:
-            self.unity_ip = ip # hello Unity, we'll talk to you from now on
+            # hello Unity, we'll talk to you from now on
+            self.unity_ip = ip
         print("ROS-Unity Handshake received, will connect to {}:{}".format(self.unity_ip, self.unity_port))
 
     def send_unity_error(self, error):

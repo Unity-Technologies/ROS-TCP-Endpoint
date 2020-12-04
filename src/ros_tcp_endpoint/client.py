@@ -1,4 +1,16 @@
-#!/usr/bin/env python
+#  Copyright 2020 Unity Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
 import struct
 import socket
@@ -7,7 +19,8 @@ from io import BytesIO
 
 from threading import Thread
 
-from tcp_endpoint.TCPEndpointExceptions import TopicOrServiceNameDoesNotExistError
+from .exceptions import TopicOrServiceNameDoesNotExistError
+
 
 class ClientThread(Thread):
     """
@@ -142,7 +155,7 @@ class ClientThread(Thread):
                 raise TopicOrServiceNameDoesNotExistError(error_msg)
             else:
                 ros_communicator = self.tcp_server.special_destination_dict[destination]
-                ros_communicator.set_incoming_ip(self.incoming_ip)
+                ros_communicator.incoming_ip = self.incoming_ip
         elif destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
                 .format(destination, self.tcp_server.source_destination_dict.keys())
