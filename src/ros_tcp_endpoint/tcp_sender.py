@@ -16,6 +16,7 @@ import rospy
 import socket
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
+from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
 
 
 class UnityTcpSender:
@@ -28,12 +29,19 @@ class UnityTcpSender:
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
 
-    def process_handshake(self, ip, port):
-        self.unity_port = port
-        if ip != '' and not self.ip_is_overridden:
+    def handshake(self, incoming_ip, data):
+        message = UnityHandshake._request_class().deserialize(data)
+        self.unity_port = message.port
+        if not self.ip_is_overridden:
             # hello Unity, we'll talk to you from now on
-            self.unity_ip = ip
+            if message.ip == '':
+                # if the message doesn't specify an IP, just talk back to the incoming IP address
+                self.unity_ip = incoming_ip
+            else:
+                # otherwise Unity has set an IP override, so use that
+                self.unity_ip = message.ip
         print("ROS-Unity Handshake received, will connect to {}:{}".format(self.unity_ip, self.unity_port))
+        return UnityHandshakeResponse(self.unity_ip)
 
     def send_unity_error(self, error):
         self.send_unity_message("__error", RosUnityError(error))

@@ -146,16 +146,14 @@ class ClientThread(Thread):
             print("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
-        if destination.startswith('__'):
-            if destination not in self.tcp_server.special_destination_dict.keys():
-                error_msg = "System message '{}' is undefined! Known system calls are: {}"\
-                    .format(destination, self.tcp_server.special_destination_dict.keys())
-                self.conn.close()
-                self.tcp_server.send_unity_error(error_msg)
-                raise TopicOrServiceNameDoesNotExistError(error_msg)
-            else:
-                ros_communicator = self.tcp_server.special_destination_dict[destination]
-                ros_communicator.incoming_ip = self.incoming_ip
+        if destination == '__syscommand':
+            self.tcp_server.handle_syscommand(data)
+            return
+        elif destination == '__handshake':
+            response = self.tcp_server.unity_tcp_sender.handshake(self.incoming_ip, data)
+            response_message = self.serialize_message(destination, response)
+            self.conn.send(response_message)
+            return
         elif destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
                 .format(destination, self.tcp_server.source_destination_dict.keys())

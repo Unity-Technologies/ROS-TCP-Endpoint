@@ -14,11 +14,14 @@
 
 import rospy
 import socket
+import json
+import sys
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
-from .unity_monitor import UnityMonitor
-
+from .subscriber import RosSubscriber
+from .publisher import RosPublisher
+from ros_tcp_endpoint.msg import RosUnitySysCommand
 
 class TcpServer:
     """
@@ -30,10 +33,7 @@ class TcpServer:
         Initializes ROS node and class variables.
 
         Args:
-            tcp_ip:                  The IP used to host the TCP server
-            tcp_port:                The port that should be used for incoming connections
             node_name:               ROS node name for executing code
-            source_destination_dict: Dictionary of source name to instantiated RosCommunication classes
             buffer_size:             The read buffer size used when reading from a socket
             connections:             Max number of queued connections. See Python Socket documentation
         """
@@ -46,11 +46,9 @@ class TcpServer:
 
         self.node_name = node_name
         self.source_destination_dict = {}
-        self.special_destination_dict = {
-            '__handshake': UnityMonitor(self.unity_tcp_sender)
-        }
         self.buffer_size = buffer_size
         self.connections = connections
+        self.syscommands = SysCommands(self)
 
     def start(self):
         """
@@ -70,7 +68,7 @@ class TcpServer:
             new_thread = ClientThread(conn, self, ip, port)
             new_thread.start()
             threads.append(new_thread)
-        
+
         # Unreachable statements:
         # for t in threads:
         #    t.join()
@@ -80,3 +78,65 @@ class TcpServer:
 
     def send_unity_message(self, topic, message):
         self.unity_tcp_sender.send_unity_message(topic, message)
+
+    def handle_syscommand(self, data):
+        message = RosUnitySysCommand().deserialize(data)
+        function = getattr(self.syscommands, message.command)
+        if function is None:
+            self.send_unity_error("Don't understand SysCommand.'{}'({})".format(message.command, message.params_json))
+            return
+        else:
+            params = json.loads(message.params_json)
+            function(**params)
+
+
+class SysCommands:
+    def __init__(self, tcp_server):
+        self.tcp_server = tcp_server
+
+    def subscribe(self, topic, message_name):
+        if topic == '':
+            self.tcp_server.send_unity_error(
+                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(topic, message_name))
+            return
+
+        message_class = resolve_message_name(message_name)
+        if message_class is None:
+            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
+            return
+
+        print("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        self.tcp_server.source_destination_dict[topic] = RosSubscriber(topic, message_class, self.tcp_server)
+
+    def publish(self, topic, message_name):
+        if topic == '':
+            self.tcp_server.send_unity_error(
+                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(topic, message_name))
+            return
+
+        message_class = resolve_message_name(message_name)
+        if message_class is None:
+            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class '{}'".format(message_name))
+            return
+
+        print("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
+
+
+def resolve_message_name(name):
+    try:
+        names = name.split('/')
+        module_name = names[0]
+        class_name = names[1]
+        module = sys.modules[module_name]
+        if module is None:
+            print("Failed to resolve module {}".format(module_name))
+        module = getattr(module, 'msg')
+        if module is None:
+            print("Failed to resolve module {}.msg".format(module_name))
+        module = getattr(module, class_name)
+        if module is None:
+            print("Failed to resolve module {}.msg.{}".format(module_name, class_name))
+        return module
+    except (IndexError, KeyError, AttributeError) as e:
+        return None
