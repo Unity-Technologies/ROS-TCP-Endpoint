@@ -144,6 +144,10 @@ class ClientThread(Thread):
             data = b''
 
             destination = self.read_string()
+            if not destination:
+                print("No destination...")
+                break
+
             full_message_size = self.read_int32()
 
             while len(data) < full_message_size:
