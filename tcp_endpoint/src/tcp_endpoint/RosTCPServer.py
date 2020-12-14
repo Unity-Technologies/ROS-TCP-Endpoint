@@ -61,6 +61,9 @@ class TCPServer:
         for t in threads:
             t.join()
 
+    def set_keep_connection(self, value):
+        self.unity_tcp_sender.keep_connection_open = value
+
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)
 

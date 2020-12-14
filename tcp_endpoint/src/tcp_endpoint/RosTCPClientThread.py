@@ -170,6 +170,7 @@ class ClientThread(Thread):
             if destination == '__connection_param':
                 parameters = RosUnityConnectionParam().deserialize(data)
                 self.keep_connection_open = parameters.keepConnectionOpen
+                self.tcp_server.set_keep_connection(parameters.keepConnectionOpen)
                 print("Received connection parameters. Will keep connection Opened ? : {}".format(self.keep_connection_open))
                 continue
             elif destination.startswith('__'):

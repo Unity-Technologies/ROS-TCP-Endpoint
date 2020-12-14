@@ -37,6 +37,7 @@ class UnityTCPSender:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.connect((self.unity_ip, self.unity_port))
                 if self.keep_connection_open:
+                    rospy.loginfo("Opening unique subscriber connection")
                     self.socket = s
                 s.send(serialized_message)
             else:
