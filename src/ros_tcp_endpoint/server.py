@@ -64,10 +64,13 @@ class TcpServer:
         while True:
             tcp_server.listen(self.connections)
 
-            (conn, (ip, port)) = tcp_server.accept()
-            new_thread = ClientThread(conn, self, ip, port)
-            new_thread.start()
-            threads.append(new_thread)
+            try:
+                (conn, (ip, port)) = tcp_server.accept()
+                new_thread = ClientThread(conn, self, ip, port)
+                new_thread.start()
+                threads.append(new_thread)
+            except socket.timeout as err:
+                logging.exception("ros_tcp_endpoint.TcpServer: socket timeout")
 
         # Unreachable statements:
         # for t in threads:
