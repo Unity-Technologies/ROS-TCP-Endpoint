@@ -16,6 +16,7 @@ import rospy
 import socket
 import json
 import sys
+import threading
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -51,6 +52,12 @@ class TcpServer:
         self.syscommands = SysCommands(self)
 
     def start(self):
+        server_thread = threading.Thread(target=self.listen_loop)
+        # Exit the server thread when the main thread terminates
+        server_thread.daemon = True
+        server_thread.start()
+        
+    def listen_loop(self):
         """
             Creates and binds sockets using TCP variables then listens for incoming connections.
             For each new connection a client thread will be created to handle communication.
