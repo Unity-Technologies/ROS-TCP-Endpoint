@@ -39,7 +39,7 @@ class RosSubscriber(RosReceiver):
         self.queue_size = queue_size
 
         # Start Subscriber listener function
-        self.listener()
+        self.sub = rospy.Subscriber(self.topic, self.msg, self.send)
 
     def send(self, data):
         """
@@ -55,10 +55,11 @@ class RosSubscriber(RosReceiver):
         self.tcp_server.send_unity_message(self.topic, data)
         return self.msg
 
-    def listener(self):
+    def unregister(self):
         """
 
         Returns:
 
         """
-        rospy.Subscriber(self.topic, self.msg, self.send)
+        if not self.sub is None:
+            self.sub.unregister()
