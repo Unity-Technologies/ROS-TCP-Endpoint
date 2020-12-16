@@ -59,3 +59,12 @@ class RosService(RosSender):
                 print("Exception Raised: {}".format(e))
 
         return None
+
+    def unregister(self):
+        """
+
+        Returns:
+
+        """
+        if not self.srv is None:
+            self.srv.close()

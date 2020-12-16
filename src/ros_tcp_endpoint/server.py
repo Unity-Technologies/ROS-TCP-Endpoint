@@ -105,7 +105,11 @@ class SysCommands:
             self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
             return
 
-        print("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        rospy.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        
+        if topic in self.tcp_server.source_destination_dict:
+            self.tcp_server.source_destination_dict[topic].unregister()
+
         self.tcp_server.source_destination_dict[topic] = RosSubscriber(topic, message_class, self.tcp_server)
 
     def publish(self, topic, message_name):
@@ -119,7 +123,11 @@ class SysCommands:
             self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class '{}'".format(message_name))
             return
 
-        print("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        rospy.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        
+        if topic in self.tcp_server.source_destination_dict:
+            self.tcp_server.source_destination_dict[topic].unregister()
+        
         self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
 
 
@@ -130,13 +138,13 @@ def resolve_message_name(name):
         class_name = names[1]
         module = sys.modules[module_name]
         if module is None:
-            print("Failed to resolve module {}".format(module_name))
+            rospy.loginfo("Failed to resolve module {}".format(module_name))
         module = getattr(module, 'msg')
         if module is None:
-            print("Failed to resolve module {}.msg".format(module_name))
+            rospy.loginfo("Failed to resolve module {}.msg".format(module_name))
         module = getattr(module, class_name)
         if module is None:
-            print("Failed to resolve module {}.msg.{}".format(module_name, class_name))
+            rospy.loginfo("Failed to resolve module {}.msg.{}".format(module_name, class_name))
         return module
     except (IndexError, KeyError, AttributeError) as e:
         return None

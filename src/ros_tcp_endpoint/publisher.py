@@ -49,3 +49,11 @@ class RosPublisher(RosSender):
         self.pub.publish(self.msg)
 
         return None
+
+    def unregister(self):
+        """
+
+        Returns:
+
+        """
+        self.pub.unregister()
