@@ -16,6 +16,7 @@ import rospy
 import socket
 import json
 import sys
+import threading
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -51,6 +52,12 @@ class TcpServer:
         self.syscommands = SysCommands(self)
 
     def start(self):
+        server_thread = threading.Thread(target=self.listen_loop)
+        # Exit the server thread when the main thread terminates
+        server_thread.daemon = True
+        server_thread.start()
+        
+    def listen_loop(self):
         """
             Creates and binds sockets using TCP variables then listens for incoming connections.
             For each new connection a client thread will be created to handle communication.
@@ -59,19 +66,15 @@ class TcpServer:
         tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tcp_server.bind((self.tcp_ip, self.tcp_port))
-        threads = []
 
         while True:
             tcp_server.listen(self.connections)
 
-            (conn, (ip, port)) = tcp_server.accept()
-            new_thread = ClientThread(conn, self, ip, port)
-            new_thread.start()
-            threads.append(new_thread)
-
-        # Unreachable statements:
-        # for t in threads:
-        #    t.join()
+            try:
+                (conn, (ip, port)) = tcp_server.accept()
+                ClientThread(conn, self, ip, port).start()
+            except socket.timeout as err:
+                logging.exception("ros_tcp_endpoint.TcpServer: socket timeout")
 
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)
