@@ -59,22 +59,15 @@ class TcpServer:
         tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tcp_server.bind((self.tcp_ip, self.tcp_port))
-        threads = []
 
         while True:
             tcp_server.listen(self.connections)
 
             try:
                 (conn, (ip, port)) = tcp_server.accept()
-                new_thread = ClientThread(conn, self, ip, port)
-                new_thread.start()
-                threads.append(new_thread)
+                ClientThread(conn, self, ip, port).start()
             except socket.timeout as err:
                 logging.exception("ros_tcp_endpoint.TcpServer: socket timeout")
-
-        # Unreachable statements:
-        # for t in threads:
-        #    t.join()
 
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)
