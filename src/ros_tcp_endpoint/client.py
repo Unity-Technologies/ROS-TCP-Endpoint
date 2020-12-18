@@ -40,8 +40,7 @@ class ClientThread(Thread):
         self.incoming_ip = incoming_ip
         self.incoming_port = incoming_port
 
-    @staticmethod
-    def read_int32(conn):
+    def read_int32(self):
         """
         Reads four bytes from socket connection and unpacks them to an int
 
@@ -49,7 +48,7 @@ class ClientThread(Thread):
 
         """
         try:
-            raw_bytes = conn.recv(4)
+            raw_bytes = self.conn.recv(4)
             num = struct.unpack('<I', raw_bytes)[0]
             return num
         except Exception as e:
@@ -57,8 +56,7 @@ class ClientThread(Thread):
 
         return None
 
-    @staticmethod
-    def read_string(conn):
+    def read_string(self):
         """
         Reads int32 from socket connection to determine how many bytes to
         read to get the string that follows. Read that number of bytes and
@@ -68,9 +66,9 @@ class ClientThread(Thread):
 
         """
         try:
-            str_len = ClientThread.read_int32(conn)
+            str_len = self.read_int32()
 
-            str_bytes = conn.recv(str_len)
+            str_bytes = self.conn.recv(str_len)
             decoded_str = str_bytes.decode('utf-8')
 
             return decoded_str
@@ -79,34 +77,6 @@ class ClientThread(Thread):
             print("Unable to read string from connection. {}".format(e))
 
         return None
-
-    @staticmethod
-    def read_message(conn):
-        """
-        Decode destination and full message size from socket connection.
-        Grab bytes in chunks until full message has been read.
-        """
-        data = b''
-
-        destination = ClientThread.read_string(conn)
-        full_message_size = ClientThread.read_int32(conn)
-
-        while len(data) < full_message_size:
-            # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
-            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = conn.recv(grab)
-
-            if not packet:
-                print("No packets...")
-                break
-
-            data += packet
-
-        if not data:
-            print("No data for a message size of {}, breaking!".format(full_message_size))
-            return
-
-        return destination, data
 
     @staticmethod
     def serialize_message(destination, message):
@@ -141,7 +111,9 @@ class ClientThread(Thread):
 
     def run(self):
         """
-        Read a message and determine where to send it based on the source_destination_dict
+        Decode destination and full message size from socket connection.
+        Grab bytes in chunks until full message has been read.
+        Determine where to send the message based on the source_destination_dict
          and destination string. Then send the read message.
 
         If there is a response after sending the serialized data, assume it is a
@@ -154,7 +126,25 @@ class ClientThread(Thread):
             msg: the ROS msg type as bytes
 
         """
-        destination, data = self.read_message(self.conn)
+        data = b''
+
+        destination = self.read_string()
+        full_message_size = self.read_int32()
+
+        while len(data) < full_message_size:
+            # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
+            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
+            packet = self.conn.recv(grab)
+
+            if not packet:
+                print("No packets...")
+                break
+
+            data += packet
+
+        if not data:
+            print("No data for a message size of {}, breaking!".format(full_message_size))
+            return
 
         if destination == '__syscommand':
             self.tcp_server.handle_syscommand(data)
