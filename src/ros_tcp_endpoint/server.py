@@ -17,6 +17,7 @@ import socket
 import json
 import sys
 import threading
+import importlib
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -139,6 +140,7 @@ def resolve_message_name(name):
         names = name.split('/')
         module_name = names[0]
         class_name = names[1]
+        importlib.import_module(module_name+ ".msg")
         module = sys.modules[module_name]
         if module is None:
             rospy.loginfo("Failed to resolve module {}".format(module_name))
@@ -150,4 +152,5 @@ def resolve_message_name(name):
             rospy.loginfo("Failed to resolve module {}.msg.{}".format(module_name, class_name))
         return module
     except (IndexError, KeyError, AttributeError) as e:
+        rospy.loginfo("Exception Raised: {}".format(e))
         return None
