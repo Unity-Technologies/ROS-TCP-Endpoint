@@ -43,13 +43,16 @@ class TcpServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port)
+        self.unity_tcp_sender = UnityTcpSender(self, unity_machine_ip, unity_machine_port)
 
         self.node_name = node_name
         self.source_destination_dict = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
+        self.keep_connections = False
+        self.timeout_in_seconds = 5.0
+        
 
     def start(self):
         server_thread = threading.Thread(target=self.listen_loop)
@@ -132,6 +135,11 @@ class SysCommands:
             self.tcp_server.source_destination_dict[topic].unregister()
         
         self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
+    
+    def connections_parameters(self, keep_connections, timeout_in_s):
+        self.tcp_server.keep_connections = keep_connections
+        self.tcp_server.timeout_in_seconds = timeout_in_s
+        rospy.loginfo("ConnectionsParameters({}, {}) OK".format(keep_connections, timeout_in_s))
 
 
 def resolve_message_name(name):

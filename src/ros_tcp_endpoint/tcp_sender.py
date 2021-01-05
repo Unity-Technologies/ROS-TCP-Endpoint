@@ -23,11 +23,12 @@ class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port):
+    def __init__(self, tcp_server, unity_ip, unity_port):
         self.unity_ip = unity_ip
         self.unity_port = unity_port
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
+        self.tcp_server = tcp_server
 
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
@@ -55,10 +56,12 @@ class UnityTcpSender:
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
+            s.settimeout(self.tcp_server.timeout_in_seconds)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
             s.send(serialized_message)
-            s.close()
         except Exception as e:
-            rospy.loginfo("Exception {}".format(e))
+            rospy.loginfo("Exception in tcp_sender {}".format(e))
+        finally:
+            s.close()
+            
