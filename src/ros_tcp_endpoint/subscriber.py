@@ -32,6 +32,7 @@ class RosSubscriber(RosReceiver):
             message_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
+        RosReceiver.__init__(self)
         self.topic = topic
         self.node_name = "{}_subscriber".format(topic)
         self.msg = message_class
