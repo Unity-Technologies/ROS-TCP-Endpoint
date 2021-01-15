@@ -10,6 +10,6 @@ commands:
         cd catkin_ws && catkin_make && source devel/setup.bash && python3 -m pytest
 triggers:
     expression: |
-        pull_request.target eq "dev" AND
+        pull_request.target in ["dev", "main"] AND
         NOT pull_request.push.changes.all match "**/*.md" AND
         NOT pull_request.source match "hotfix/.*"
