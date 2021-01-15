@@ -10,6 +10,7 @@ commands:
 triggers:
     cancel_old_ci: true
     expression: |
-        pull_request.target in ["dev", "main"] AND
-        NOT pull_request.push.changes.all match "**/*.md" AND
-        NOT pull_request.source match "hotfix/.*"
+        (pull_request.target eq "main"  AND
+        NOT pull_request.push.changes.all match "**/*.md") OR
+        (push.branch eq "dev" AND
+        NOT push.changes.all match "**/*.md")
