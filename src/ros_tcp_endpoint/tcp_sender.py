@@ -49,7 +49,7 @@ class UnityTcpSender:
 
     def send_unity_message(self, topic, message):
         if self.unity_ip == '':
-            print("Can't send a message, no defined unity IP!".format(topic, message))
+            print("Can't send a message to topic {}: no defined unity IP! Message was: {}".format(topic, message))
             return
 
         serialized_message = ClientThread.serialize_message(topic, message)
