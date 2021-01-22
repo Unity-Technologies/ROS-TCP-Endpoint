@@ -30,7 +30,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, tcp_ip="", tcp_port=-1, buffer_size=1024, connections=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1):
         """
         Initializes ROS node and class variables.
 
