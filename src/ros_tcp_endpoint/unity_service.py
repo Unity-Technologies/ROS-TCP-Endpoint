@@ -13,42 +13,43 @@
 #  limitations under the License.
 
 import rospy
+import socket
 
-from .communication import RosSender
+from .communication import RosReceiver
+from .client import ClientThread
 
 
-class RosPublisher(RosSender):
+class UnityService(RosReceiver):
     """
-    Class to publish messages to a ROS topic
+    Class to register a ROS service that's implemented in Unity.
     """
-    # TODO: surface latch functionality
-    def __init__(self, topic, message_class, queue_size=10):
+    def __init__(self, topic, service_class, tcp_server, queue_size=10):
         """
 
         Args:
             topic:         Topic name to publish messages to
-            message_class: The message class in catkin workspace
+            service_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        RosSender.__init__(self)
-        self.msg = message_class()
-        self.pub = rospy.Publisher(topic, message_class, queue_size=queue_size)
+        self.topic = topic
+        self.node_name = "{}_service".format(topic)
+        self.service_class = service_class
+        self.tcp_server = tcp_server
+        self.queue_size = queue_size
+
+        # Start Subscriber listener function
+        self.service = rospy.Service(self.topic, self.service_class, self.send)
 
     def send(self, data):
         """
-        Takes in serialized message data from source outside of the ROS network,
-        deserializes it into it's message class, and publishes the message to ROS topic.
-
+        Connect to TCP endpoint on client, pass along message and get reply
         Args:
-            data: The already serialized message_class data coming from outside of ROS
+            data: message data to send outside of ROS network
 
         Returns:
-            None: Explicitly return None so behaviour can be
+            The response message
         """
-        self.msg.deserialize(data)
-        self.pub.publish(self.msg)
-
-        return None
+        return self.tcp_server.send_unity_service(self.topic, self.service_class, data)
 
     def unregister(self):
         """
@@ -56,4 +57,4 @@ class RosPublisher(RosSender):
         Returns:
 
         """
-        self.pub.unregister()
+        self.service.unregister()

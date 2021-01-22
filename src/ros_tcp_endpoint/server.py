@@ -17,6 +17,7 @@ import socket
 import json
 import sys
 import threading
+import importlib
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -29,7 +30,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1):
         """
         Initializes ROS node and class variables.
 
@@ -38,8 +39,15 @@ class TcpServer:
             buffer_size:             The read buffer size used when reading from a socket
             connections:             Max number of queued connections. See Python Socket documentation
         """
-        self.tcp_ip = rospy.get_param("/ROS_IP")
-        self.tcp_port = rospy.get_param("/ROS_TCP_PORT", 10000)
+        if tcp_ip != "":
+            self.tcp_ip = tcp_ip
+        else:
+            self.tcp_ip = rospy.get_param("/ROS_IP")
+            
+        if tcp_port != -1:
+            self.tcp_port = tcp_port
+        else:
+            self.tcp_port = rospy.get_param("/ROS_TCP_PORT", 10000)
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
@@ -51,7 +59,9 @@ class TcpServer:
         self.connections = connections
         self.syscommands = SysCommands(self)
 
-    def start(self):
+    def start(self, source_destination_dict=None):
+        if source_destination_dict is not None:
+            self.source_destination_dict = source_destination_dict
         server_thread = threading.Thread(target=self.listen_loop)
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
@@ -81,6 +91,9 @@ class TcpServer:
 
     def send_unity_message(self, topic, message):
         self.unity_tcp_sender.send_unity_message(topic, message)
+
+    def send_unity_service(self, topic, service_class, request):
+        return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
@@ -139,6 +152,7 @@ def resolve_message_name(name):
         names = name.split('/')
         module_name = names[0]
         class_name = names[1]
+        importlib.import_module(module_name+ ".msg")
         module = sys.modules[module_name]
         if module is None:
             rospy.loginfo("Failed to resolve module {}".format(module_name))
@@ -150,4 +164,5 @@ def resolve_message_name(name):
             rospy.loginfo("Failed to resolve module {}.msg.{}".format(module_name, class_name))
         return module
     except (IndexError, KeyError, AttributeError) as e:
+        rospy.loginfo("Exception Raised: {}".format(e))
         return None
