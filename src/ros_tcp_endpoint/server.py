@@ -12,10 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import sys
+import json
 import rospy
 import socket
-import json
-import sys
+import logging
 import threading
 import importlib
 
@@ -43,7 +44,7 @@ class TcpServer:
             self.tcp_ip = tcp_ip
         else:
             self.tcp_ip = rospy.get_param("/ROS_IP")
-            
+
         if tcp_port != -1:
             self.tcp_port = tcp_port
         else:
@@ -66,7 +67,7 @@ class TcpServer:
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
         server_thread.start()
-        
+
     def listen_loop(self):
         """
             Creates and binds sockets using TCP variables then listens for incoming connections.
@@ -122,7 +123,7 @@ class SysCommands:
             return
 
         rospy.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
-        
+
         if topic in self.tcp_server.source_destination_dict:
             self.tcp_server.source_destination_dict[topic].unregister()
 
@@ -140,10 +141,10 @@ class SysCommands:
             return
 
         rospy.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
-        
+
         if topic in self.tcp_server.source_destination_dict:
             self.tcp_server.source_destination_dict[topic].unregister()
-        
+
         self.tcp_server.source_destination_dict[topic] = RosPublisher(topic, message_class, queue_size=10)
 
 
