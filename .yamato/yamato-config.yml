@@ -2,7 +2,7 @@ name: Endpoint Unit Tests
 agent:
     type: Unity::VM
     image: robotics/ci-ubuntu20:latest
-    flavor: i1.medium
+    flavor: i1.large
 commands:
     - source /opt/ros/noetic/setup.bash && echo "ROS_DISTRO == $ROS_DISTRO" &&
         cd .. && mkdir -p catkin_ws/src && cp -r ./ROS-TCP-Endpoint catkin_ws/src &&
