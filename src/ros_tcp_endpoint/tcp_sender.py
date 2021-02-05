@@ -58,7 +58,7 @@ class UnityTcpSender:
             s.settimeout(2)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
-            s.send(serialized_message)
+            s.sendall(serialized_message)
             s.close()
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
@@ -75,7 +75,7 @@ class UnityTcpSender:
             s.settimeout(2)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
-            s.send(serialized_message)
+            s.sendall(serialized_message)
 
             destination, data = ClientThread.read_message(s)
 
