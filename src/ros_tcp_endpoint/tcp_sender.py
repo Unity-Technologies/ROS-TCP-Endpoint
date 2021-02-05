@@ -23,11 +23,12 @@ class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port):
+    def __init__(self, unity_ip, unity_port, timeout):
         self.unity_ip = unity_ip
         self.unity_port = unity_port
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
+        self.timeout = timeout
 
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
@@ -55,7 +56,7 @@ class UnityTcpSender:
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(10)
+            s.settimeout(self.timeout)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
             s.sendall(serialized_message)
@@ -72,7 +73,7 @@ class UnityTcpSender:
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(10)
+            s.settimeout(self.timeout)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
             s.sendall(serialized_message)
