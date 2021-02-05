@@ -55,7 +55,7 @@ class UnityTcpSender:
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
+            s.settimeout(10)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
             s.sendall(serialized_message)
@@ -72,7 +72,7 @@ class UnityTcpSender:
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
+            s.settimeout(10)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
             s.sendall(serialized_message)
@@ -85,3 +85,4 @@ class UnityTcpSender:
             return response
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
+            
