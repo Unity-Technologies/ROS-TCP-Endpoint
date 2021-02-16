@@ -14,36 +14,21 @@
 
 import rospy
 import socket
-import time
-import threading
-import struct
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
 from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
 
-# queue module was renamed between python 2 and 3
-try:
-    from queue import Queue
-except:
-    from Queue import Queue
 
 class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port, timeout_on_connect, timeout_on_send, timeout_on_idle):
+    def __init__(self, unity_ip, unity_port, timeout):
         self.unity_ip = unity_ip
         self.unity_port = unity_port
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
-        self.timeout_on_connect = timeout_on_connect
-        self.timeout_on_send = timeout_on_send
-        self.timeout_on_idle = timeout_on_idle
-        self.queue = Queue()
-        sender_thread = threading.Thread(target=self.sender_loop)
-        # Exit the server thread when the main thread terminates
-        sender_thread.daemon = True
-        sender_thread.start()
+        self.timeout = timeout
 
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
@@ -68,7 +53,16 @@ class UnityTcpSender:
             return
 
         serialized_message = ClientThread.serialize_message(topic, message)
-        self.queue.put(serialized_message)
+
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(self.timeout)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.connect((self.unity_ip, self.unity_port))
+            s.sendall(serialized_message)
+            s.close()
+        except Exception as e:
+            rospy.loginfo("Exception {}".format(e))
 
     def send_unity_service(self, topic, service_class, request):
         if self.unity_ip == '':
@@ -76,13 +70,12 @@ class UnityTcpSender:
             return
 
         serialized_message = ClientThread.serialize_message(topic, request)
-        
+
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(self.timeout_on_connect)
+            s.settimeout(self.timeout)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
-            s.settimeout(self.timeout_on_send)
             s.sendall(serialized_message)
 
             destination, data = ClientThread.read_message(s)
@@ -93,34 +86,4 @@ class UnityTcpSender:
             return response
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
- 
-    def sender_loop(self):
-        s = None
-        idletimeout = 0
-        
-        while True:
-            item = self.queue.get()
             
-            retries = 0
-            while retries < 3:
-                retries+=1
-                
-                try:
-                    if time.time() > idletimeout:
-                        if s != None:
-                            s.close()
-
-                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s.settimeout(self.timeout_on_connect)
-                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                        s.connect((self.unity_ip, self.unity_port))
-                        s.settimeout(self.timeout_on_send)
-                    
-                    s.sendall(item)
-                    idletimeout = time.time() + self.timeout_on_idle
-                    break # sent ok. break the retries loop
-                except socket.timeout:
-                    idletimeout = 0 # assume the connection has been closed, force a reconnect
-                except Exception as e:
-                    rospy.loginfo("Exception {}".format(e))
-                    idletimeout = 0
