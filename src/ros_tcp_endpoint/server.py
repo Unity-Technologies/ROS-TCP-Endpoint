@@ -24,7 +24,9 @@ from .tcp_sender import UnityTcpSender
 from .client import ClientThread
 from .subscriber import RosSubscriber
 from .publisher import RosPublisher
+from ros_tcp_endpoint.msg import RosUnityTestMsg
 from ros_tcp_endpoint.msg import RosUnitySysCommand
+from ros_tcp_endpoint.srv import RosUnityTopicListResponse
 
 class TcpServer:
     """
@@ -95,6 +97,9 @@ class TcpServer:
 
     def send_unity_service(self, topic, service_class, request):
         return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
+
+    def topic_list(self, data):
+        return RosUnityTopicListResponse(self.source_destination_dict.keys())
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
