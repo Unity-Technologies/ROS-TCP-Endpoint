@@ -24,7 +24,6 @@ from .tcp_sender import UnityTcpSender
 from .client import ClientThread
 from .subscriber import RosSubscriber
 from .publisher import RosPublisher
-from ros_tcp_endpoint.msg import RosUnityTestMsg
 from ros_tcp_endpoint.msg import RosUnitySysCommand
 from ros_tcp_endpoint.srv import RosUnityTopicListResponse
 
