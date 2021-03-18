@@ -32,7 +32,10 @@ class RosService(RosSender):
         self.srv_class = service_class._request_class()
         self.srv = rospy.ServiceProxy(service, service_class)
 
-    def send(self, data):
+    def will_block_for_response(self):
+        return True
+
+    def send(self, data, client_thread):
         """
         Takes in serialized message data from source outside of the ROS network,
         deserializes it into it's class, calls the service with the message, and returns
@@ -40,6 +43,8 @@ class RosService(RosSender):
 
         Args:
             data: The already serialized message_class data coming from outside of ROS
+            client_thread: reference to thread that will be blocked, used by unity_service, but not here
+
 
         Returns:
             service response
@@ -57,8 +62,6 @@ class RosService(RosSender):
                 print("Service Exception raised. Attempt: {}".format(attempt))
             except Exception as e:
                 print("Exception Raised: {}".format(e))
-
-        return None
 
     def unregister(self):
         """

@@ -20,6 +20,10 @@ class RosSender:
     def __init__(self):
         pass
 
+    def will_block_for_response(self):
+        """ Provides some context into the expected behavior of a particular send() implementation """
+        raise NotImplementedError
+
     def send(self, *args):
         raise NotImplementedError
 
@@ -30,6 +34,10 @@ class RosReceiver:
     """
     def __init__(self):
         pass
+
+    def will_block_for_response(self):
+        """ Provides some context into the expected behavior of a particular send() implementation """
+        raise NotImplementedError
 
     def send(self, *args):
         raise NotImplementedError

@@ -16,8 +16,8 @@ import sys
 import json
 import rospy
 import socket
-import logging
 import threading
+import traceback
 import importlib
 
 from .tcp_sender import UnityTcpSender
@@ -26,6 +26,7 @@ from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from ros_tcp_endpoint.msg import RosUnitySysCommand
 from ros_tcp_endpoint.srv import RosUnityTopicListResponse
+
 
 class TcpServer:
     """
@@ -62,7 +63,6 @@ class TcpServer:
         self.syscommands = SysCommands(self)
         self.keep_connections = False
         self.timeout_in_seconds = 5.0
-        
 
     def start(self, source_destination_dict=None):
         if source_destination_dict is not None:
@@ -89,7 +89,7 @@ class TcpServer:
                 (conn, (ip, port)) = tcp_server.accept()
                 ClientThread(conn, self, ip, port).start()
             except socket.timeout as err:
-                logging.exception("ros_tcp_endpoint.TcpServer: socket timeout")
+                traceback.print_exc()
 
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)
@@ -97,8 +97,8 @@ class TcpServer:
     def send_unity_message(self, topic, message):
         self.unity_tcp_sender.send_unity_message(topic, message)
 
-    def send_unity_service(self, topic, service_class, request):
-        return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
+    def send_unity_service(self, topic, service_class, request, client_thread):
+        return self.unity_tcp_sender.send_unity_service(topic, service_class, request, client_thread)
 
     def topic_list(self, data):
         return RosUnityTopicListResponse(self.source_destination_dict.keys())

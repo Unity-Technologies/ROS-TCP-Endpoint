@@ -21,3 +21,8 @@ class RosTcpEndpointError(Exception):
 class TopicOrServiceNameDoesNotExistError(RosTcpEndpointError):
     """The topic or service name passed does not exist in the source destination dictionary."""
     pass
+
+
+class ConnectionTimeoutError(RosTcpEndpointError):
+    """ Timed out waiting for a socket connection """
+    pass

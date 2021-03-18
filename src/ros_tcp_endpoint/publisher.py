@@ -34,6 +34,9 @@ class RosPublisher(RosSender):
         self.msg = message_class()
         self.pub = rospy.Publisher(topic, message_class, queue_size=queue_size)
 
+    def will_block_for_response(self):
+        return False
+
     def send(self, data):
         """
         Takes in serialized message data from source outside of the ROS network,
@@ -47,8 +50,6 @@ class RosPublisher(RosSender):
         """
         self.msg.deserialize(data)
         self.pub.publish(self.msg)
-
-        return None
 
     def unregister(self):
         """

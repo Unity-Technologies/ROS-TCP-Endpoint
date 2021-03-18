@@ -13,14 +13,14 @@
 #  limitations under the License.
 
 import struct
-import socket
-import rospy
 import select
+import traceback
 from io import BytesIO
 
 from threading import Thread
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
+from .exceptions import ConnectionTimeoutError
 
 
 class ClientThread(Thread):
@@ -44,16 +44,17 @@ class ClientThread(Thread):
     def read(self, size):
         """
         Reads the given number of bytes from socket connection
-        Returns: red bytes
+        Returns: read bytes
         """
         if self.tcp_server.keep_connections:
             ready = select.select([self.conn], [], [], self.tcp_server.timeout_in_seconds)
             if ready[0]:
                 return self.conn.recv(size)
+            else:
+                raise ConnectionTimeoutError("Timed out after {} seconds waiting for {} to be ready.".format(
+                    self.tcp_server.timeout_in_seconds, self.conn))
         else:
             return self.conn.recv(size)
-            
-        return None
 
     def read_int32(self):
         """
@@ -66,8 +67,8 @@ class ClientThread(Thread):
             raw_bytes = self.read(4)
             num = struct.unpack('<I', raw_bytes)[0]
             return num
-        except Exception as e:
-            print("Unable to read integer from connection. {}".format(e))
+        except Exception as _:
+            traceback.print_exc()
 
         return None
 
@@ -86,10 +87,37 @@ class ClientThread(Thread):
             decoded_str = str_bytes.decode('utf-8')
             return decoded_str
 
-        except Exception as e:
-            print("Unable to read string from connection. {}".format(e))
+        except Exception as _:
+            traceback.print_exc()
 
         return None
+
+    def read_message(self):
+        """
+        Decode destination and full message size from socket connection.
+        Grab bytes in chunks until full message has been read.
+        """
+        data = b''
+
+        destination = self.read_string()
+        full_message_size = self.read_int32()
+
+        while len(data) < full_message_size:
+            # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
+            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
+            packet = self.read(grab)
+
+            if not packet:
+                print("No packets...")
+                break
+
+            data += packet
+
+        if full_message_size > 0 and not data:
+            print("No data for a message size of {}, breaking!".format(full_message_size))
+            return
+
+        return destination, data
 
     @staticmethod
     def serialize_message(destination, message):
@@ -138,29 +166,10 @@ class ClientThread(Thread):
 
         """
         while True:
-            data = b''
-
-            destination = self.read_string()
+            destination, data = self.read_message()
 
             if not destination:
                 print("No destination... Maybe the client disconnected")
-                break
-
-            full_message_size = self.read_int32()
-
-            while len(data) < full_message_size:
-                # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
-                grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-                packet = self.read(grab)
-
-                if not packet:
-                    print("No packets...")
-                    break
-
-                data += packet
-
-            if not data:
-                print("No data for a message size of {}, breaking!".format(full_message_size))
                 break
 
             if destination == '__syscommand':
@@ -177,11 +186,18 @@ class ClientThread(Thread):
             else:
                 try:
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
-                    response = ros_communicator.send(data)
-                    # Responses only exist for services
-                    if response:
-                        response_message = self.serialize_message(destination, response)
-                        self.conn.send(response_message)
+                    # TODO: "send" interface is obfuscating the expected behavior -- refactor to
+                    #       more explicitly define contract with accurate naming
+                    if ros_communicator.will_block_for_response():
+                        response = ros_communicator.send(data, self)
+                        if response:
+                            response_message = self.serialize_message(destination, response)
+                            self.conn.send(response_message)
+                        else:
+                            # TODO: AIRO-556 Add logging support
+                            print("ERROR: Expected response from {} but none received".format(ros_communicator))
+                    else:
+                        ros_communicator.send(data)
                 except Exception as e:
                     print("Exception Raised in client : {}".format(e))
 

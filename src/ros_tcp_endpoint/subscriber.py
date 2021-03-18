@@ -13,10 +13,8 @@
 #  limitations under the License.
 
 import rospy
-import socket
 
 from .communication import RosReceiver
-from .client import ClientThread
 
 
 class RosSubscriber(RosReceiver):
@@ -35,26 +33,23 @@ class RosSubscriber(RosReceiver):
         RosReceiver.__init__(self)
         self.topic = topic
         self.node_name = "{}_subscriber".format(topic)
-        self.msg = message_class
         self.tcp_server = tcp_server
         self.queue_size = queue_size
 
         # Start Subscriber listener function
-        self.sub = rospy.Subscriber(self.topic, self.msg, self.send)
+        self.sub = rospy.Subscriber(self.topic, message_class, self.send)
+
+    def will_block_for_response(self):
+        return False
 
     def send(self, data):
         """
         Connect to TCP endpoint on client and pass along message
         Args:
             data: message data to send outside of ROS network
-
-        Returns:
-            self.msg: The deserialize message
-
         """
 
         self.tcp_server.send_unity_message(self.topic, data)
-        return self.msg
 
     def unregister(self):
         """

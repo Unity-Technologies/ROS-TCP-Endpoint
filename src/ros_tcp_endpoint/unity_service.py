@@ -13,10 +13,8 @@
 #  limitations under the License.
 
 import rospy
-import socket
 
 from .communication import RosReceiver
-from .client import ClientThread
 
 
 class UnityService(RosReceiver):
@@ -31,6 +29,7 @@ class UnityService(RosReceiver):
             service_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
+        RosReceiver.__init__(self)
         self.topic = topic
         self.node_name = "{}_service".format(topic)
         self.service_class = service_class
@@ -40,16 +39,20 @@ class UnityService(RosReceiver):
         # Start Subscriber listener function
         self.service = rospy.Service(self.topic, self.service_class, self.send)
 
-    def send(self, data):
+    def will_block_for_response(self):
+        return True
+
+    def send(self, data, client_thread):
         """
         Connect to TCP endpoint on client, pass along message and get reply
         Args:
             data: message data to send outside of ROS network
+            client_thread: reference to thread that will be blocked while waiting for a response
 
         Returns:
             The response message
         """
-        return self.tcp_server.send_unity_service(self.topic, self.service_class, data)
+        return self.tcp_server.send_unity_service(self.topic, self.service_class, data, client_thread)
 
     def unregister(self):
         """

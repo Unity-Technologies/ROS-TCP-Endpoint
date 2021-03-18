@@ -64,3 +64,26 @@ class UnityTcpSender:
             rospy.loginfo("Exception in tcp_sender {}".format(e))
         finally:
             s.close()
+
+    def send_unity_service(self, client_thread, topic, service_class, request):
+        if self.unity_ip == '':
+            print("Can't send a message, no defined unity IP!".format(topic, request))
+            return
+
+        serialized_message = ClientThread.serialize_message(topic, request)
+
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(self.tcp_server.timeout_in_seconds)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.connect((self.unity_ip, self.unity_port))
+            s.sendall(serialized_message)
+
+            destination, data = client_thread.read_message(s)
+
+            response = service_class._response_class().deserialize(data)
+
+            s.close()
+            return response
+        except Exception as e:
+            rospy.loginfo("Exception {}".format(e))
