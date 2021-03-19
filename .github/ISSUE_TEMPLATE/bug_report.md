@@ -27,7 +27,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots or videos to help explain your problem.
 
 **Environment (please complete the following information, where applicable):**
-- Unity Version: [e.g. Unity 2020.2.0f1]
+- Unity Version: [e.g. Unity 2020.1f1]
 - Unity machine OS + version: [e.g. Windows 10]
 - ROS machine OS + version: [e.g. Ubuntu 18.04, ROS Noetic]
 - ROS–Unity communication: [e.g. Docker]

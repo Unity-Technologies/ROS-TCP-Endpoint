@@ -1,7 +1,7 @@
 # Contribution Guidelines
 
-Thank you for your interest in contributing to Unity Robotics! To facilitate your
-contributions, we've outlined a brief set of guidelines to ensure that your extensions
+Thank you for your interest in contributing to Unity Robotics! To facilitate your 
+contributions, we've outlined a brief set of guidelines to ensure that your extensions 
 can be easily integrated.
 
 ## Communication
@@ -16,6 +16,10 @@ Unity Robotics packages or tutorials, we **strongly** recommend posting on the r
 briefly outlining the changes you plan to make. This will enable us to provide
 some context that may be helpful for you. This could range from advice and
 feedback on how to optimally perform your changes or reasons for not doing it.
+
+Lastly, if you're looking for input on what to contribute, feel free to reach
+out to our team directly at [unity-robotics@unity3d.com](mailto:unity-robotics@unity3d.com) 
+and/or browse the GitHub issues.
 
 ## Git Branches
 
@@ -40,10 +44,10 @@ We run continuous integration on all PRs; all tests must be passing before the P
 
 All Python code should follow the [PEP 8 style guidelines](https://pep8.org/).
 
-All C# code should follow the [Microsoft C# Coding Conventions](https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/inside-a-program/coding-conventions).
-Additionally, the [Unity Coding package](https://docs.unity3d.com/Packages/com.unity.coding@0.1/manual/index.html)
-can be used to format, encode, and lint your code according to the standard Unity
-development conventions. Be aware that these Unity conventions will supersede the
+All C# code should follow the [Microsoft C# Coding Conventions](https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/inside-a-program/coding-conventions). 
+Additionally, the [Unity Coding package](https://docs.unity3d.com/Packages/com.unity.coding@0.1/manual/index.html) 
+can be used to format, encode, and lint your code according to the standard Unity 
+development conventions. Be aware that these Unity conventions will supersede the 
 Microsoft C# Coding Conventions where applicable.
 
 Please note that even if the code you are changing does not adhere to these guidelines,
@@ -60,5 +64,5 @@ email us at [unity-robotics@unity3d.com](mailto:unity-robotics@unity3d.com).
 
 ## Contribution review
 
-Once you have a change ready following the above ground rules, simply make a
+Once you have a change ready following the above ground rules, simply make a 
 pull request in GitHub.
