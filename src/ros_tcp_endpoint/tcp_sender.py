@@ -77,6 +77,7 @@ class UnityTcpSender:
             s.settimeout(self.timeout)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
+            s.sendall(struct.pack('<f', self.timeout))
             s.sendall(serialized_message)
 
             destination, data = ClientThread.read_message(s)
