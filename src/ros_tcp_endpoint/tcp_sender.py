@@ -14,9 +14,12 @@
 
 import rospy
 import socket
+import time
+import threading
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
 from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
+from queue import Queue
 
 
 class UnityTcpSender:
@@ -29,6 +32,12 @@ class UnityTcpSender:
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
         self.timeout = timeout
+        self.queue = Queue()
+        sender_thread = threading.Thread(target=self.sender_loop)
+        # Exit the server thread when the main thread terminates
+        sender_thread.daemon = True
+        sender_thread.start()
+
 
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
@@ -53,16 +62,7 @@ class UnityTcpSender:
             return
 
         serialized_message = ClientThread.serialize_message(topic, message)
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(self.timeout)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.connect((self.unity_ip, self.unity_port))
-            s.sendall(serialized_message)
-            s.close()
-        except Exception as e:
-            rospy.loginfo("Exception {}".format(e))
+        self.queue.put(serialized_message)
 
     def send_unity_service(self, topic, service_class, request):
         if self.unity_ip == '':
@@ -70,7 +70,7 @@ class UnityTcpSender:
             return
 
         serialized_message = ClientThread.serialize_message(topic, request)
-
+        
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(self.timeout)
@@ -86,4 +86,29 @@ class UnityTcpSender:
             return response
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
+ 
+    def sender_loop(self):
+        s = None
+        sockettimeout = 0
+        
+        while True:
+            item = self.queue.get()
             
+            if time.time() > sockettimeout:
+                if s != None:
+                    s.close()
+
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(self.timeout)
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    s.connect((self.unity_ip, self.unity_port))
+                except Exception as e:
+                    rospy.loginfo("Exception on Connect {}".format(e))
+                    sockettimeout = 0
+            
+            try:
+                s.sendall(item)
+                sockettimeout = time.time() + self.timeout
+            except Exception as e:
+                rospy.loginfo("Exception on Send {}".format(e))
