@@ -16,6 +16,7 @@ import rospy
 import socket
 import time
 import threading
+import struct
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
 from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
@@ -103,6 +104,7 @@ class UnityTcpSender:
                     s.settimeout(self.timeout)
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     s.connect((self.unity_ip, self.unity_port))
+                    s.sendall(struct.pack('<f', self.timeout))
                 except Exception as e:
                     rospy.loginfo("Exception on Connect {}".format(e))
                     sockettimeout = 0
