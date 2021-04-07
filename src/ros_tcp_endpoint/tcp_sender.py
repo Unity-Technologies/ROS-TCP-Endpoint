@@ -112,6 +112,8 @@ class UnityTcpSender:
             
             try:
                 s.sendall(item)
-                sockettimeout = time.time() + self.timeout
+                # on the endpoint, make a new connection after 3/4ths of the timeout time. Trying to avoid
+                # a situation where Unity has stopped listening but the endpoint is still trying to send
+                sockettimeout = time.time() + self.timeout * 0.75
             except Exception as e:
                 rospy.loginfo("Exception on Send {}".format(e))
