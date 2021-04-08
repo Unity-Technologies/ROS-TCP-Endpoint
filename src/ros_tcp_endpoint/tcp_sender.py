@@ -116,6 +116,7 @@ class UnityTcpSender:
                     try:
                         s.sendall(item)
                         idletimeout = time.time() + self.timeout_on_idle
+                        break # sent ok - break the retries loop
                     except socket.timeout:
                         idletimeout = 0 # assume the connection has been closed, force a reconnect
                     except Exception as e:
