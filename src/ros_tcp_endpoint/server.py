@@ -53,7 +53,7 @@ class TcpServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeout_on_connect, timeout_on_send, timeoutOnIdle)
+        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeout_on_connect, timeout_on_send, timeout_on_idle)
 
         self.node_name = node_name
         self.source_destination_dict = {}
