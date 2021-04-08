@@ -32,7 +32,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeoutOnConnect=10, timeoutOnSend=0.8, timeoutOnIdle=10):
         """
         Initializes ROS node and class variables.
 
@@ -53,7 +53,7 @@ class TcpServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeout)
+        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeoutOnConnect, timeoutOnSend, timeoutOnIdle)
 
         self.node_name = node_name
         self.source_destination_dict = {}

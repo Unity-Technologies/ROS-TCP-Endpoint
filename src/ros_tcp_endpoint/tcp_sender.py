@@ -27,12 +27,14 @@ class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port, timeout):
+    def __init__(self, unity_ip, unity_port, timeoutOnConnect, timeoutOnSend, timeoutOnIdle):
         self.unity_ip = unity_ip
         self.unity_port = unity_port
         # if we have a valid IP at this point, it was overridden locally so always use that
         self.ip_is_overridden = (self.unity_ip != '')
-        self.timeout = timeout
+        self.timeoutOnConnect = timeoutOnConnect
+        self.timeoutOnSend = timeoutOnSend
+        self.timeoutOnIdle = timeoutOnIdle
         self.queue = Queue()
         sender_thread = threading.Thread(target=self.sender_loop)
         # Exit the server thread when the main thread terminates
@@ -74,10 +76,10 @@ class UnityTcpSender:
         
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(self.timeout)
+            s.settimeout(self.timeoutOnConnect)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.connect((self.unity_ip, self.unity_port))
-            s.sendall(struct.pack('<f', self.timeout))
+            s.settimeout(self.timeoutOnSend)
             s.sendall(serialized_message)
 
             destination, data = ClientThread.read_message(s)
@@ -91,29 +93,33 @@ class UnityTcpSender:
  
     def sender_loop(self):
         s = None
-        sockettimeout = 0
+        idletimeout = 0
         
         while True:
             item = self.queue.get()
             
-            if time.time() > sockettimeout:
-                if s != None:
-                    s.close()
-
+            retries = 0
+            while retries < 3:
+                retries+=1
+                
                 try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.settimeout(self.timeout)
-                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    s.connect((self.unity_ip, self.unity_port))
-                    s.sendall(struct.pack('<f', self.timeout))
+                    if time.time() > idletimeout:
+                        if s != None:
+                            s.close()
+
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(self.timeoutOnConnect)
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        s.connect((self.unity_ip, self.unity_port))
+                        s.settimeout(self.timeoutOnSend)
+                    
+                    try:
+                        s.sendall(item)
+                        idletimeout = time.time() + self.timeoutOnIdle
+                    except socket.timeout:
+                        idletimeout = 0 # assume the connection has been closed, force a reconnect
+                    except Exception as e:
+                        rospy.loginfo("Exception on Send {}".format(e))
                 except Exception as e:
                     rospy.loginfo("Exception on Connect {}".format(e))
-                    sockettimeout = 0
-            
-            try:
-                s.sendall(item)
-                # on the endpoint, make a new connection after 3/4ths of the timeout time. Trying to avoid
-                # a situation where Unity has stopped listening but the endpoint is still trying to send
-                sockettimeout = time.time() + self.timeout * 0.75
-            except Exception as e:
-                rospy.loginfo("Exception on Send {}".format(e))
+                    idletimeout = 0
