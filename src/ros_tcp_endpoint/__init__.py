@@ -16,4 +16,4 @@ from .publisher import RosPublisher
 from .subscriber import RosSubscriber
 from .service import RosService
 from .server import TcpServer
-
+from .unity_service import UnityService
