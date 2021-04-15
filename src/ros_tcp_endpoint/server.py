@@ -57,6 +57,7 @@ class TcpServer:
 
         self.node_name = node_name
         self.source_destination_dict = {}
+        self.all_topics_dict = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
@@ -98,7 +99,9 @@ class TcpServer:
         return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
 
     def topic_list(self, data):
-        return RosUnityTopicListResponse(self.source_destination_dict.keys())
+        for topic, messageName in rospy.get_published_topics():
+            all_topics_dict[topic] = messageName
+        return RosUnityTopicListResponse(all_topics_dict.keys(), all_topics_dict.values())
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
