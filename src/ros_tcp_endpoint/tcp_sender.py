@@ -113,13 +113,11 @@ class UnityTcpSender:
                         s.connect((self.unity_ip, self.unity_port))
                         s.settimeout(self.timeout_on_send)
                     
-                    try:
-                        s.sendall(item)
-                        idletimeout = time.time() + self.timeout_on_idle
-                    except socket.timeout:
-                        idletimeout = 0 # assume the connection has been closed, force a reconnect
-                    except Exception as e:
-                        rospy.loginfo("Exception on Send {}".format(e))
+                    s.sendall(item)
+                    idletimeout = time.time() + self.timeout_on_idle
+                    break # sent ok. break the retries loop
+                except socket.timeout:
+                    idletimeout = 0 # assume the connection has been closed, force a reconnect
                 except Exception as e:
-                    rospy.loginfo("Exception on Connect {}".format(e))
+                    rospy.loginfo("Exception {}".format(e))
                     idletimeout = 0
