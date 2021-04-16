@@ -41,7 +41,6 @@ class UnityTcpSender:
         sender_thread.daemon = True
         sender_thread.start()
 
-
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
         self.unity_port = message.port
