@@ -20,8 +20,12 @@ import struct
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
 from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
-from queue import Queue
 
+# queue module was renamed between python 2 and 3
+try:
+    from queue import Queue
+except:
+    from Queue import Queue
 
 class UnityTcpSender:
     """
