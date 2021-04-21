@@ -25,13 +25,14 @@ from .client import ClientThread
 from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from ros_tcp_endpoint.msg import RosUnitySysCommand
+from ros_tcp_endpoint.srv import RosUnityTopicListResponse
 
 class TcpServer:
     """
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout_on_connect=10, timeout_on_send=0.8, timeout_on_idle=10):
         """
         Initializes ROS node and class variables.
 
@@ -52,7 +53,7 @@ class TcpServer:
 
         unity_machine_ip = rospy.get_param("/UNITY_IP", '')
         unity_machine_port = rospy.get_param("/UNITY_SERVER_PORT", 5005)
-        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeout)
+        self.unity_tcp_sender = UnityTcpSender(unity_machine_ip, unity_machine_port, timeout_on_connect, timeout_on_send, timeout_on_idle)
 
         self.node_name = node_name
         self.source_destination_dict = {}
@@ -95,6 +96,9 @@ class TcpServer:
 
     def send_unity_service(self, topic, service_class, request):
         return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
+
+    def topic_list(self, data):
+        return RosUnityTopicListResponse(self.source_destination_dict.keys())
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)

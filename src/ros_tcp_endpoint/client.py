@@ -102,7 +102,7 @@ class ClientThread(Thread):
 
             data += packet
 
-        if not data:
+        if full_message_size > 0 and not data:
             print("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
@@ -161,6 +161,11 @@ class ClientThread(Thread):
             return
         elif destination == '__handshake':
             response = self.tcp_server.unity_tcp_sender.handshake(self.incoming_ip, data)
+            response_message = self.serialize_message(destination, response)
+            self.conn.send(response_message)
+            return
+        elif destination == '__topic_list':
+            response = self.tcp_server.topic_list(data)
             response_message = self.serialize_message(destination, response)
             self.conn.send(response_message)
             return
