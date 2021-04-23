@@ -40,10 +40,6 @@ class UnityTcpSender:
         self.timeout_on_send = timeout_on_send
         self.timeout_on_idle = timeout_on_idle
         self.queue = Queue()
-        sender_thread = threading.Thread(target=self.sender_loop)
-        # Exit the server thread when the main thread terminates
-        sender_thread.daemon = True
-        sender_thread.start()
 
     def handshake(self, incoming_ip, data):
         message = UnityHandshake._request_class().deserialize(data)
@@ -94,33 +90,21 @@ class UnityTcpSender:
         except Exception as e:
             rospy.loginfo("Exception {}".format(e))
  
-    def sender_loop(self):
+    def start_sender(self, conn):
+        sender_thread = threading.Thread(target=self.sender_loop, args=(conn,))
+        # Exit the server thread when the main thread terminates
+        sender_thread.daemon = True
+        sender_thread.start()
+ 
+    def sender_loop(self, conn):
         s = None
-        idletimeout = 0
         
         while True:
             item = self.queue.get()
-            
-            retries = 0
-            while retries < 3:
-                retries+=1
-                
-                try:
-                    if time.time() > idletimeout:
-                        if s != None:
-                            s.close()
 
-                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s.settimeout(self.timeout_on_connect)
-                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                        s.connect((self.unity_ip, self.unity_port))
-                        s.settimeout(self.timeout_on_send)
-                    
-                    s.sendall(item)
-                    idletimeout = time.time() + self.timeout_on_idle
-                    break # sent ok. break the retries loop
-                except socket.timeout:
-                    idletimeout = 0 # assume the connection has been closed, force a reconnect
-                except Exception as e:
-                    rospy.loginfo("Exception {}".format(e))
-                    idletimeout = 0
+            try:
+                conn.sendall(item)
+            except Exception as e:
+                rospy.loginfo("Exception {}".format(e))
+                conn.close()
+                break

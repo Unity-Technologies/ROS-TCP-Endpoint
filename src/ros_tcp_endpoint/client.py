@@ -34,11 +34,26 @@ class ClientThread(Thread):
             conn:
             source_destination_dict: dictionary of destination name to RosCommunicator class
         """
-        Thread.__init__(self)
         self.conn = conn
         self.tcp_server = tcp_server
         self.incoming_ip = incoming_ip
         self.incoming_port = incoming_port
+        Thread.__init__(self)
+
+    @staticmethod
+    def recvall(conn, size, flags=0):
+        """
+        Receive exactly bufsize bytes from the socket.
+        """
+        buffer = bytearray(size)
+        view = memoryview(buffer)
+        pos = 0
+        while pos < size:
+            read = conn.recv_into(view[pos:], size - pos, flags)
+            if not read:
+                raise Exception("No more data available")
+            pos += read
+        return bytes(buffer)
 
     @staticmethod
     def read_int32(conn):
@@ -48,14 +63,9 @@ class ClientThread(Thread):
         Returns: int
 
         """
-        try:
-            raw_bytes = conn.recv(4)
-            num = struct.unpack('<I', raw_bytes)[0]
-            return num
-        except Exception as e:
-            print("Unable to read integer from connection. {}".format(e))
-
-        return None
+        raw_bytes = ClientThread.recvall(conn, 4)
+        num = struct.unpack('<I', raw_bytes)[0]
+        return num
 
     @staticmethod
     def read_string(conn):
@@ -67,18 +77,12 @@ class ClientThread(Thread):
         Returns: string
 
         """
-        try:
-            str_len = ClientThread.read_int32(conn)
+        str_len = ClientThread.read_int32(conn)
 
-            str_bytes = conn.recv(str_len)
-            decoded_str = str_bytes.decode('utf-8')
+        str_bytes = ClientThread.recvall(conn, str_len)
+        decoded_str = str_bytes.decode('utf-8')
 
-            return decoded_str
-
-        except Exception as e:
-            print("Unable to read string from connection. {}".format(e))
-
-        return None
+        return decoded_str
 
     @staticmethod
     def read_message(conn):
@@ -94,7 +98,7 @@ class ClientThread(Thread):
         while len(data) < full_message_size:
             # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
             grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = conn.recv(grab)
+            packet = ClientThread.recvall(conn, grab)
 
             if not packet:
                 print("No packets...")
@@ -154,38 +158,60 @@ class ClientThread(Thread):
             msg: the ROS msg type as bytes
 
         """
-        destination, data = self.read_message(self.conn)
-
-        if destination == '__syscommand':
-            self.tcp_server.handle_syscommand(data)
-            return
-        elif destination == '__handshake':
-            response = self.tcp_server.unity_tcp_sender.handshake(self.incoming_ip, data)
-            response_message = self.serialize_message(destination, response)
-            self.conn.send(response_message)
-            return
-        elif destination == '__topic_list':
-            response = self.tcp_server.topic_list(data)
-            response_message = self.serialize_message(destination, response)
-            self.conn.send(response_message)
-            return
-        elif destination not in self.tcp_server.source_destination_dict.keys():
-            error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
-                .format(destination, self.tcp_server.source_destination_dict.keys())
-            self.conn.close()
-            self.tcp_server.send_unity_error(error_msg)
-            raise TopicOrServiceNameDoesNotExistError(error_msg)
-        else:
-            ros_communicator = self.tcp_server.source_destination_dict[destination]
-
+        print("New connection")
+        shouldStartSender = False # this hack can be removed in phase 2 when we handle services properly
+        isSenderRunning = False
         try:
-            response = ros_communicator.send(data)
+            while True:
+                if shouldStartSender:
+                    self.tcp_server.unity_tcp_sender.start_sender(self.conn)
+                    isSenderRunning = True
+                
+                destination, data = self.read_message(self.conn)
+                shouldStartSender = isSenderRunning == False
 
-            # Responses only exist for services
-            if response:
-                response_message = self.serialize_message(destination, response)
-                self.conn.send(response_message)
+                #print("Received a message for {}, size {}".format(destination, len(data)));
+
+                if destination == '__syscommand':
+                    self.tcp_server.handle_syscommand(data)
+                elif destination == '__handshake':
+                    response = self.tcp_server.unity_tcp_sender.handshake(self.incoming_ip, data)
+                    response_message = self.serialize_message(destination, response)
+                    self.conn.send(response_message)
+                    self.conn.close()
+                    return
+                elif destination == '__topic_list':
+                    response = self.tcp_server.topic_list(data)
+                    response_message = self.serialize_message(destination, response)
+                    self.conn.send(response_message)
+                    self.conn.close()
+                    return
+                elif destination == '':
+                    #ignore this keepalive message, listen for more
+                    pass
+                elif destination not in self.tcp_server.source_destination_dict.keys():
+                    error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
+                        .format(destination, self.tcp_server.source_destination_dict.keys())
+                    self.tcp_server.send_unity_error(error_msg)
+                    print(error_msg)
+                else:
+                    ros_communicator = self.tcp_server.source_destination_dict[destination]
+
+                    try:
+                        response = ros_communicator.send(data)
+
+                        # Responses only exist for services
+                        if response:
+                            response_message = self.serialize_message(destination, response)
+                            self.conn.send(response_message)
+                            return
+                    except Exception as e:
+                        print("Exception Raised: {}".format(e))
+                        return
         except Exception as e:
             print("Exception Raised: {}".format(e))
+            return
         finally:
+            print("Closed connection");
             self.conn.close()
+            return
