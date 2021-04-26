@@ -19,7 +19,8 @@ import threading
 import struct
 from .client import ClientThread
 from ros_tcp_endpoint.msg import RosUnityError
-from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
+from ros_tcp_endpoint.msg import RosUnitySrvMessage
+from io import BytesIO
 
 # queue module was renamed between python 2 and 3
 try:
@@ -31,65 +32,58 @@ class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port, timeout_on_connect, timeout_on_send, timeout_on_idle):
-        self.unity_ip = unity_ip
-        self.unity_port = unity_port
+    def __init__(self, timeout_on_connect, timeout_on_send, timeout_on_idle):
         # if we have a valid IP at this point, it was overridden locally so always use that
-        self.ip_is_overridden = (self.unity_ip != '')
         self.timeout_on_connect = timeout_on_connect
         self.timeout_on_send = timeout_on_send
         self.timeout_on_idle = timeout_on_idle
         self.queue = Queue()
-
-    def handshake(self, incoming_ip, data):
-        message = UnityHandshake._request_class().deserialize(data)
-        self.unity_port = message.port
-        if not self.ip_is_overridden:
-            # hello Unity, we'll talk to you from now on
-            if message.ip == '':
-                # if the message doesn't specify an IP, just talk back to the incoming IP address
-                self.unity_ip = incoming_ip
-            else:
-                # otherwise Unity has set an IP override, so use that
-                self.unity_ip = message.ip
-        print("ROS-Unity Handshake received, will connect to {}:{}".format(self.unity_ip, self.unity_port))
-        return UnityHandshakeResponse(self.unity_ip)
+        
+        # variables needed for matching up unity service requests with responses
+        self.next_srv_id = 1001
+        self.srv_lock = threading.Lock()
+        self.services_waiting = {}
 
     def send_unity_error(self, error):
         self.send_unity_message("__error", RosUnityError(error))
 
     def send_unity_message(self, topic, message):
-        if self.unity_ip == '':
-            print("Can't send a message, no defined unity IP!".format(topic, message))
-            return
-
         serialized_message = ClientThread.serialize_message(topic, message)
         self.queue.put(serialized_message)
 
     def send_unity_service(self, topic, service_class, request):
-        if self.unity_ip == '':
-            print("Can't send a message, no defined unity IP!".format(topic, request))
-            return
-
-        serialized_message = ClientThread.serialize_message(topic, request)
+        request_bytes = BytesIO()
+        request.serialize(request_bytes)
+        result = [None]
+        condition = threading.Condition()
         
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(self.timeout_on_connect)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.connect((self.unity_ip, self.unity_port))
-            s.settimeout(self.timeout_on_send)
-            s.sendall(serialized_message)
+        with self.srv_lock:
+            srv_id = self.next_srv_id
+            self.next_srv_id+=1
+            self.services_waiting[srv_id] = (condition, result)
+        
+        payload = request_bytes.getvalue()
+        srv_message = RosUnitySrvMessage(srv_id, True, topic, payload)
+        serialized_message = ClientThread.serialize_message('__srv', srv_message)
+        self.queue.put(serialized_message)
 
-            destination, data = ClientThread.read_message(s)
+        # rospy starts a new thread for each service request,
+        # so it won't break anything if we suspend it while waiting for the response
+        with condition:
+            condition.wait()
+        
+        response = service_class._response_class().deserialize(result[0])
+        return response
+    
+    def send_unity_service_response(self, srv_id, data):
+        with self.srv_lock:
+            (condition, result) = self.services_waiting[srv_id]
+            result[0] = data
+            del self.services_waiting[srv_id]
+        
+        with condition:
+            condition.notify()
 
-            response = service_class._response_class().deserialize(data)
-
-            s.close()
-            return response
-        except Exception as e:
-            rospy.loginfo("Exception {}".format(e))
- 
     def start_sender(self, conn):
         sender_thread = threading.Thread(target=self.sender_loop, args=(conn,))
         # Exit the server thread when the main thread terminates

@@ -20,6 +20,8 @@ from io import BytesIO
 from threading import Thread
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
+from ros_tcp_endpoint.msg import RosUnitySrvMessage
+from ros_tcp_endpoint.srv import UnityHandshakeRequest, UnityHandshakeResponse
 
 
 class ClientThread(Thread):
@@ -158,60 +160,69 @@ class ClientThread(Thread):
             msg: the ROS msg type as bytes
 
         """
-        print("New connection")
-        shouldStartSender = False # this hack can be removed in phase 2 when we handle services properly
-        isSenderRunning = False
+        print("Connection from {}".format(self.incoming_ip))
         try:
             while True:
-                if shouldStartSender:
-                    self.tcp_server.unity_tcp_sender.start_sender(self.conn)
-                    isSenderRunning = True
+                self.tcp_server.unity_tcp_sender.start_sender(self.conn)
                 
                 destination, data = self.read_message(self.conn)
-                shouldStartSender = isSenderRunning == False
 
-                #print("Received a message for {}, size {}".format(destination, len(data)));
-
-                if destination == '__syscommand':
-                    self.tcp_server.handle_syscommand(data)
-                elif destination == '__handshake':
-                    response = self.tcp_server.unity_tcp_sender.handshake(self.incoming_ip, data)
-                    response_message = self.serialize_message(destination, response)
-                    self.conn.send(response_message)
-                    self.conn.close()
-                    return
-                elif destination == '__topic_list':
-                    response = self.tcp_server.topic_list(data)
-                    response_message = self.serialize_message(destination, response)
-                    self.conn.send(response_message)
-                    self.conn.close()
-                    return
-                elif destination == '':
+                if destination == '':
                     #ignore this keepalive message, listen for more
                     pass
-                elif destination not in self.tcp_server.source_destination_dict.keys():
-                    error_msg = "Topic/service destination '{}' is not defined! Known topics are: {} "\
+                elif destination == '__syscommand':
+                    #handle a system command, such as registering new topics
+                    self.tcp_server.handle_syscommand(data)
+                elif destination == '__srv':
+                    # handle a ros service message request, or a unity service message response
+                    srvMessage = RosUnitySrvMessage().deserialize(data)
+                    if not srvMessage.is_request:
+                        self.tcp_server.send_unity_service_response(srvMessage.srvID, srvMessage.payload)
+                        continue
+                    elif srvMessage.topic == '__topic_list':
+                        response = self.tcp_server.topic_list(data)
+                    elif srvMessage.topic not in self.tcp_server.source_destination_dict.keys():
+                        error_msg = "Service destination '{}' is not registered! Known topics are: {} "\
+                            .format(srvMessage.topic, self.tcp_server.source_destination_dict.keys())
+                        self.tcp_server.send_unity_error(error_msg)
+                        print(error_msg)
+                        # TODO: send a response to Unity anyway?
+                        continue                        
+                    else:
+                        ros_communicator = self.tcp_server.source_destination_dict[srvMessage.topic]
+                        try:
+                            response = ros_communicator.send(data)
+                            if not response:
+                                error_msg = "No response data from service '{}'!".format(srvMessage.topic)
+                                self.tcp_server.send_unity_error(error_msg)
+                                print(error_msg)
+                                # TODO: send a response to Unity anyway?
+                                continue
+                        except Exception as e:
+                            print("Exception while calling service {}: {}".format(e))
+                            # TODO: send a response to Unity anyway?
+                            continue
+                    
+                    serial_response = BytesIO()
+                    response.serialize(serial_response)
+                    response_message = RosUnitySrvMessage(srvMessage.srvID, False, '', serial_response.getvalue())
+                    self.tcp_server.unity_tcp_sender.send_unity_message("__srv", response_message)
+                elif destination in self.tcp_server.source_destination_dict.keys():
+                    ros_communicator = self.tcp_server.source_destination_dict[destination]
+                    try:
+                        response = ros_communicator.send(data)
+                    except Exception as e:
+                        print("Exception Raised: {}".format(e))
+                        continue
+                else:
+                    error_msg = "Topic '{}' is not registered! Known topics are: {} "\
                         .format(destination, self.tcp_server.source_destination_dict.keys())
                     self.tcp_server.send_unity_error(error_msg)
                     print(error_msg)
-                else:
-                    ros_communicator = self.tcp_server.source_destination_dict[destination]
-
-                    try:
-                        response = ros_communicator.send(data)
-
-                        # Responses only exist for services
-                        if response:
-                            response_message = self.serialize_message(destination, response)
-                            self.conn.send(response_message)
-                            return
-                    except Exception as e:
-                        print("Exception Raised: {}".format(e))
-                        return
         except Exception as e:
             print("Exception Raised: {}".format(e))
             return
         finally:
-            print("Closed connection");
+            print("Disconnected");
             self.conn.close()
             return
