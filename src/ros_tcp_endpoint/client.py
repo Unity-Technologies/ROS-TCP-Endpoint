@@ -177,7 +177,7 @@ class ClientThread(Thread):
                     # handle a ros service message request, or a unity service message response
                     srvMessage = RosUnitySrvMessage().deserialize(data)
                     if not srvMessage.is_request:
-                        self.tcp_server.send_unity_service_response(srvMessage.srvID, srvMessage.payload)
+                        self.tcp_server.send_unity_service_response(srvMessage.srv_id, srvMessage.payload)
                         continue
                     elif srvMessage.topic == '__topic_list':
                         response = self.tcp_server.topic_list(data)
@@ -205,7 +205,7 @@ class ClientThread(Thread):
                     
                     serial_response = BytesIO()
                     response.serialize(serial_response)
-                    response_message = RosUnitySrvMessage(srvMessage.srvID, False, '', serial_response.getvalue())
+                    response_message = RosUnitySrvMessage(srvMessage.srv_id, False, '', serial_response.getvalue())
                     self.tcp_server.unity_tcp_sender.send_unity_message("__srv", response_message)
                 elif destination in self.tcp_server.source_destination_dict.keys():
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
