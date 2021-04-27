@@ -25,8 +25,10 @@ from io import BytesIO
 # queue module was renamed between python 2 and 3
 try:
     from queue import Queue
+    from queue import Empty
 except:
     from Queue import Queue
+    from Queue import Empty
 
 class UnityTcpSender:
     """
@@ -38,6 +40,7 @@ class UnityTcpSender:
         self.timeout_on_send = timeout_on_send
         self.timeout_on_idle = timeout_on_idle
         self.queue = Queue()
+        self.sender_id = 1
         
         # variables needed for matching up unity service requests with responses
         self.next_srv_id = 1001
@@ -84,21 +87,35 @@ class UnityTcpSender:
         with condition:
             condition.notify()
 
-    def start_sender(self, conn):
-        sender_thread = threading.Thread(target=self.sender_loop, args=(conn,))
+    def start_sender(self, conn, reader_halt, sender_halt):
+        sender_thread = threading.Thread(target=self.sender_loop, args=(conn, self.sender_id, reader_halt, sender_halt))
+        self.sender_id += 1
         # Exit the server thread when the main thread terminates
         sender_thread.daemon = True
         sender_thread.start()
  
-    def sender_loop(self, conn):
+    def sender_loop(self, conn, tid, reader_halt, sender_halt):
         s = None
         
         while True:
-            item = self.queue.get()
+            try:
+                item = self.queue.get(timeout=0.5)
+            except Empty:
+                # ideally we'd just wait on the queue, but we also need to check frequently for the connection being closed 
+                # (otherwise we might take a message and fail to send it)
+                if sender_halt[0]:
+                    return
+                continue
+
+            if sender_halt[0]:
+                return
+            
+            #print("Sender {} sending an item".format(tid))
 
             try:
                 conn.sendall(item)
             except Exception as e:
-                rospy.loginfo("Exception {}".format(e))
+                rospy.loginfo("Exception on Send {}".format(e))
+                reader_halt[0] = True
                 conn.close()
                 break

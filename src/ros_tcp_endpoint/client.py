@@ -161,9 +161,13 @@ class ClientThread(Thread):
 
         """
         print("Connection from {}".format(self.incoming_ip))
+        sender_halt = [False]
+        reader_halt = [False]
+        self.tcp_server.unity_tcp_sender.start_sender(self.conn, reader_halt, sender_halt)
         try:
             while True:
-                self.tcp_server.unity_tcp_sender.start_sender(self.conn)
+                if reader_halt[0]:
+                    return
                 
                 destination, data = self.read_message(self.conn)
 
@@ -212,7 +216,7 @@ class ClientThread(Thread):
                     try:
                         response = ros_communicator.send(data)
                     except Exception as e:
-                        print("Exception Raised: {}".format(e))
+                        print("Exception on Publish: {}".format(e))
                         continue
                 else:
                     error_msg = "Topic '{}' is not registered! Known topics are: {} "\
@@ -220,9 +224,11 @@ class ClientThread(Thread):
                     self.tcp_server.send_unity_error(error_msg)
                     print(error_msg)
         except Exception as e:
-            print("Exception Raised: {}".format(e))
+            print("Exception on Read: {}".format(e))
             return
         finally:
             print("Disconnected");
-            self.conn.close()
+            sender_halt[0] = True
+            if not reader_halt[0]:
+                self.conn.close()
             return
