@@ -103,8 +103,8 @@ class TcpServer:
 
     def topic_list(self, data):
         for topic, messageName in rospy.get_published_topics():
-            all_topics_dict[topic] = messageName
-        return RosUnityTopicListResponse(all_topics_dict.keys(), all_topics_dict.values())
+            self.all_topics_dict[topic] = messageName
+        return RosUnityTopicListResponse(self.all_topics_dict.keys(), self.all_topics_dict.values())
 
     def handle_syscommand(self, data):
         message = RosUnitySysCommand().deserialize(data)
