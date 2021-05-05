@@ -190,16 +190,11 @@ class ClientThread(threading.Thread):
                         continue                        
                     else:
                         ros_communicator = self.tcp_server.source_destination_dict[srv_message.topic]
-                        try:
-                            response = ros_communicator.send(data)
-                            if not response:
-                                error_msg = "No response data from service '{}'!".format(srv_message.topic)
-                                self.tcp_server.send_unity_error(error_msg)
-                                rospy.logerr(error_msg)
-                                # TODO: send a response to Unity anyway?
-                                continue
-                        except Exception as e:
-                            rospy.logerr("Exception while calling service {}: {}".format(e))
+                        response = ros_communicator.send(data)
+                        if not response:
+                            error_msg = "No response data from service '{}'!".format(srv_message.topic)
+                            self.tcp_server.send_unity_error(error_msg)
+                            rospy.logerr(error_msg)
                             # TODO: send a response to Unity anyway?
                             continue
                     
