@@ -34,7 +34,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout_on_connect=10, timeout_on_send=0.8, timeout_on_idle=10):
+    def __init__(self, node_name, buffer_size=1024, connections=2, tcp_ip="", tcp_port=-1):
         """
         Initializes ROS node and class variables.
 
@@ -53,7 +53,7 @@ class TcpServer:
         else:
             self.tcp_port = rospy.get_param("/ROS_TCP_PORT", 10000)
 
-        self.unity_tcp_sender = UnityTcpSender(timeout_on_connect, timeout_on_send, timeout_on_idle)
+        self.unity_tcp_sender = UnityTcpSender()
 
         self.node_name = node_name
         self.source_destination_dict = {}
@@ -199,14 +199,14 @@ def resolve_message_name(name, extension="msg"):
         importlib.import_module(module_name + "." + extension)
         module = sys.modules[module_name]
         if module is None:
-            rospy.loginfo("Failed to resolve module {}".format(module_name))
+            rospy.logerr("Failed to resolve module {}".format(module_name))
         module = getattr(module, extension)
         if module is None:
-            rospy.loginfo("Failed to resolve module {}.{}".format(module_name, extension))
+            rospy.logerr("Failed to resolve module {}.{}".format(module_name, extension))
         module = getattr(module, class_name)
         if module is None:
-            rospy.loginfo("Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
+            rospy.logerr("Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
         return module
-    except (IndexError, KeyError, AttributeError) as e:
-        rospy.loginfo("Exception Raised: {}".format(e))
+    except (IndexError, KeyError, AttributeError, ImportError) as e:
+        rospy.logerr("Failed to resolve message name: {}".format(e))
         return None
