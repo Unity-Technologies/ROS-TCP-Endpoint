@@ -18,109 +18,108 @@ import time
 import threading
 import struct
 from .client import ClientThread
+from .thread_pauser import ThreadPauser
 from ros_tcp_endpoint.msg import RosUnityError
-from ros_tcp_endpoint.srv import UnityHandshake, UnityHandshakeResponse
+from ros_tcp_endpoint.msg import RosUnitySrvMessage
+from io import BytesIO
 
 # queue module was renamed between python 2 and 3
 try:
     from queue import Queue
+    from queue import Empty
 except:
     from Queue import Queue
+    from Queue import Empty
 
 class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
     """
-    def __init__(self, unity_ip, unity_port, timeout_on_connect, timeout_on_send, timeout_on_idle):
-        self.unity_ip = unity_ip
-        self.unity_port = unity_port
+    def __init__(self):
         # if we have a valid IP at this point, it was overridden locally so always use that
-        self.ip_is_overridden = (self.unity_ip != '')
-        self.timeout_on_connect = timeout_on_connect
-        self.timeout_on_send = timeout_on_send
-        self.timeout_on_idle = timeout_on_idle
-        self.queue = Queue()
-        sender_thread = threading.Thread(target=self.sender_loop)
-        # Exit the server thread when the main thread terminates
-        sender_thread.daemon = True
-        sender_thread.start()
+        self.sender_id = 1
+        self.time_between_halt_checks = 5
 
-    def handshake(self, incoming_ip, data):
-        message = UnityHandshake._request_class().deserialize(data)
-        self.unity_port = message.port
-        if not self.ip_is_overridden:
-            # hello Unity, we'll talk to you from now on
-            if message.ip == '':
-                # if the message doesn't specify an IP, just talk back to the incoming IP address
-                self.unity_ip = incoming_ip
-            else:
-                # otherwise Unity has set an IP override, so use that
-                self.unity_ip = message.ip
-        print("ROS-Unity Handshake received, will connect to {}:{}".format(self.unity_ip, self.unity_port))
-        return UnityHandshakeResponse(self.unity_ip)
+        # Each sender thread has its own queue: this is always the queue for the currently active thread.
+        self.queue = None
+        self.queue_lock = threading.Lock()
+        
+        # variables needed for matching up unity service requests with responses
+        self.next_srv_id = 1001
+        self.srv_lock = threading.Lock()
+        self.services_waiting = {}
 
     def send_unity_error(self, error):
         self.send_unity_message("__error", RosUnityError(error))
 
     def send_unity_message(self, topic, message):
-        if self.unity_ip == '':
-            print("Can't send a message, no defined unity IP!".format(topic, message))
-            return
-
         serialized_message = ClientThread.serialize_message(topic, message)
-        self.queue.put(serialized_message)
+        if self.queue is not None:
+            self.queue.put(serialized_message)
 
     def send_unity_service(self, topic, service_class, request):
-        if self.unity_ip == '':
-            print("Can't send a message, no defined unity IP!".format(topic, request))
-            return
+        request_bytes = BytesIO()
+        request.serialize(request_bytes)
+        thread_pauser = ThreadPauser()
+        
+        with self.srv_lock:
+            srv_id = self.next_srv_id
+            self.next_srv_id+=1
+            self.services_waiting[srv_id] = thread_pauser
+        
+        payload = request_bytes.getvalue()
+        srv_message = RosUnitySrvMessage(srv_id, True, topic, payload)
+        serialized_message = ClientThread.serialize_message('__srv', srv_message)
+        if self.queue is not None:
+            self.queue.put(serialized_message)
 
-        serialized_message = ClientThread.serialize_message(topic, request)
+        # rospy starts a new thread for each service request,
+        # so it won't break anything if we sleep now while waiting for the response
+        thread_pauser.sleep_until_resumed()
+        
+        response = service_class._response_class().deserialize(thread_pauser.result)
+        return response
+    
+    def send_unity_service_response(self, srv_id, data):
+        thread_pauser = None
+        with self.srv_lock:
+            thread_pauser = self.services_waiting[srv_id]
+            del self.services_waiting[srv_id]
+        
+        thread_pauser.resume_with_result(data)
+
+    def start_sender(self, conn, halt_event):
+        sender_thread = threading.Thread(target=self.sender_loop, args=(conn, self.sender_id, halt_event))
+        self.sender_id += 1
+
+        # Exit the server thread when the main thread terminates
+        sender_thread.daemon = True
+        sender_thread.start()
+ 
+    def sender_loop(self, conn, tid, halt_event):
+        s = None
+        local_queue = Queue()
+        with self.queue_lock:
+            self.queue = local_queue
         
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(self.timeout_on_connect)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.connect((self.unity_ip, self.unity_port))
-            s.settimeout(self.timeout_on_send)
-            s.sendall(serialized_message)
-
-            destination, data = ClientThread.read_message(s)
-
-            response = service_class._response_class().deserialize(data)
-
-            s.close()
-            return response
-        except Exception as e:
-            rospy.loginfo("Exception {}".format(e))
- 
-    def sender_loop(self):
-        s = None
-        idletimeout = 0
-        
-        while True:
-            item = self.queue.get()
-            
-            retries = 0
-            while retries < 3:
-                retries+=1
-                
+            while not halt_event.is_set():
                 try:
-                    if time.time() > idletimeout:
-                        if s != None:
-                            s.close()
+                    item = local_queue.get(timeout=self.time_between_halt_checks)
+                except Empty:
+                    # I'd like to just wait on the queue, but we also need to check occasionally for the connection being closed 
+                    # (otherwise the thread never terminates.)
+                    continue
+                
+                #print("Sender {} sending an item".format(tid))
 
-                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s.settimeout(self.timeout_on_connect)
-                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                        s.connect((self.unity_ip, self.unity_port))
-                        s.settimeout(self.timeout_on_send)
-                    
-                    s.sendall(item)
-                    idletimeout = time.time() + self.timeout_on_idle
-                    break # sent ok. break the retries loop
-                except socket.timeout:
-                    idletimeout = 0 # assume the connection has been closed, force a reconnect
+                try:
+                    conn.sendall(item)
                 except Exception as e:
-                    rospy.loginfo("Exception {}".format(e))
-                    idletimeout = 0
+                    rospy.logerr("Exception on Send {}".format(e))
+                    break
+        finally:
+            halt_event.set()
+            with self.queue_lock:
+                if self.queue is local_queue:
+                    self.queue = None

@@ -9,9 +9,15 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_python_setup()
 
-add_message_files(DIRECTORY msg)
+add_message_files(FILES
+	RosUnityError.msg
+	RosUnitySrvMessage.msg
+	RosUnitySysCommand.msg
+)
 
-add_service_files(DIRECTORY srv)
+add_service_files(FILES
+	RosUnityTopicList.srv
+)
 
 generate_messages(DEPENDENCIES std_msgs)
 
