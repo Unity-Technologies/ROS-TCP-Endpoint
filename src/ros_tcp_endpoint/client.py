@@ -21,7 +21,6 @@ import threading
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
 from ros_tcp_endpoint.msg import RosUnitySrvMessage
-from ros_tcp_endpoint.srv import UnityHandshakeRequest, UnityHandshakeResponse
 
 
 class ClientThread(threading.Thread):
