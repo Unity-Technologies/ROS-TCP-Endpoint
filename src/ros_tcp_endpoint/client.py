@@ -189,7 +189,7 @@ class ClientThread(threading.Thread):
                         continue                        
                     else:
                         ros_communicator = self.tcp_server.source_destination_dict[srv_message.topic]
-                        response = ros_communicator.send(data)
+                        response = ros_communicator.send(srv_message.payload)
                         if not response:
                             error_msg = "No response data from service '{}'!".format(srv_message.topic)
                             self.tcp_server.send_unity_error(error_msg)
