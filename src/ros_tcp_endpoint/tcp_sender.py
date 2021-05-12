@@ -99,7 +99,9 @@ class UnityTcpSender:
     def sender_loop(self, conn, tid, halt_event):
         s = None
         local_queue = Queue()
-        local_queue.put(b'\0\0\0\0\0\0\0\0') # send an empty message to confirm connection
+        # send an empty message to confirm connection
+        # minimal message: 4 zero bytes for topic length 0, 4 zero bytes for payload length 0
+        local_queue.put(b'\0\0\0\0\0\0\0\0')
         with self.queue_lock:
             self.queue = local_queue
         
