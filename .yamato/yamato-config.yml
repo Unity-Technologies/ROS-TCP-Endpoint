@@ -4,13 +4,20 @@ agent:
     image: robotics/ci-ubuntu20:latest
     flavor: i1.large
 commands:
-    - source /opt/ros/noetic/setup.bash && echo "ROS_DISTRO == $ROS_DISTRO" &&
-        cd .. && mkdir -p catkin_ws/src && cp -r ./ROS-TCP-Endpoint catkin_ws/src &&
-        cd catkin_ws && catkin_make && source devel/setup.bash && python3 -m pytest
+    - |
+    source /opt/ros/noetic/setup.bash && echo "ROS_DISTRO == $ROS_DISTRO"
+    cd .. && mkdir -p catkin_ws/src && cp -r ./ROS-TCP-Endpoint catkin_ws/src
+    cd catkin_ws && catkin_make && source devel/setup.bash
+    cd src/ROS-TCP-Endpoint
+    python3 -m pytest --cov=. --cov-report xml:../test-results/coverage.xml --cov-report html:../test-results/coverage.html test/
 triggers:
     cancel_old_ci: true
     expression: |
         (pull_request.target eq "main"  AND
         NOT pull_request.push.changes.all match "**/*.md") OR
-        (push.branch eq "dev" AND
-        NOT push.changes.all match "**/*.md")
+        (pull_request.target eq "dev" AND
+        NOT pull_request.push.changes.all match "**/*.md")
+artifacts:
+    logs:
+        paths:
+            - "test-results/**/*"
