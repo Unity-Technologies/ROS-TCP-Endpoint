@@ -23,6 +23,7 @@ class UnityService(RosReceiver):
     """
     Class to register a ROS service that's implemented in Unity.
     """
+
     def __init__(self, topic, service_class, tcp_server, queue_size=10):
         """
 

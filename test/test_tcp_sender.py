@@ -3,7 +3,7 @@ from unittest import mock
 import ros_tcp_endpoint
 
 
-@mock.patch('ros_tcp_endpoint.tcp_sender.rospy')
+@mock.patch("ros_tcp_endpoint.tcp_sender.rospy")
 def test_tcp_sender_constructor(mock_ros):
     tcp_sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
     assert tcp_sender.sender_id == 1
@@ -14,14 +14,14 @@ def test_tcp_sender_constructor(mock_ros):
     assert tcp_sender.services_waiting == {}
 
 
-@mock.patch.object(ros_tcp_endpoint.tcp_sender.UnityTcpSender, 'send_unity_message')
+@mock.patch.object(ros_tcp_endpoint.tcp_sender.UnityTcpSender, "send_unity_message")
 def test_send_unity_error_should_send_msg(mock_send_message):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
     sender.send_unity_error("Test error")
     mock_send_message.assert_called_once()
 
 
-@mock.patch.object(ros_tcp_endpoint.client.ClientThread, 'serialize_message')
+@mock.patch.object(ros_tcp_endpoint.client.ClientThread, "serialize_message")
 def test_send_message_should_serialize_message(mock_serialize_msg):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
     sender.send_unity_message("test topic", "test msg")
@@ -30,9 +30,11 @@ def test_send_message_should_serialize_message(mock_serialize_msg):
     assert sender.queue == None
 
 
-@mock.patch.object(ros_tcp_endpoint.thread_pauser.ThreadPauser, 'sleep_until_resumed')
-@mock.patch.object(ros_tcp_endpoint.client.ClientThread, 'serialize_message')
-def test_send_unity_service_should_serialize_ros_unity_srv(mock_serialize_msg, mock_thread_pauser):
+@mock.patch.object(ros_tcp_endpoint.thread_pauser.ThreadPauser, "sleep_until_resumed")
+@mock.patch.object(ros_tcp_endpoint.client.ClientThread, "serialize_message")
+def test_send_unity_service_should_serialize_ros_unity_srv(
+    mock_serialize_msg, mock_thread_pauser
+):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
     sender.send_unity_service(mock.Mock(), mock.Mock(), mock.Mock())
     mock_serialize_msg.assert_called_once()
@@ -40,11 +42,11 @@ def test_send_unity_service_should_serialize_ros_unity_srv(mock_serialize_msg, m
     assert sender.queue == None
 
 
-@mock.patch('ros_tcp_endpoint.thread_pauser.ThreadPauser')
+@mock.patch("ros_tcp_endpoint.thread_pauser.ThreadPauser")
 def test_send_unity_service_response_should_resume(mock_thread_pauser_class):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
     thread_pauser = mock_thread_pauser_class()
-    sender.services_waiting = {'moveit': thread_pauser}
+    sender.services_waiting = {"moveit": thread_pauser}
     sender.send_unity_service_response("moveit", "test data")
     thread_pauser.resume_with_result.assert_called_once()
 
