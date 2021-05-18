@@ -57,4 +57,4 @@ class UnityService(RosReceiver):
         Returns:
 
         """
-        self.service.unregister()
+        self.service.shutdown()
