@@ -6,10 +6,10 @@ class ThreadPauser:
         self.result = None
 	
     def sleep_until_resumed(self):
-        with condition:
-            condition.wait()
+        with self.condition:
+            self.condition.wait()
 
     def resume_with_result(self, result):
         self.result = result
-        with condition:
-            condition.notify()
+        with self.condition:
+            self.condition.notify()
