@@ -10,8 +10,8 @@ Instructions and examples on how to use this ROS package can be found on the [Un
 
 ## Community and Feedback
 
-The Unity Robotics projects are open-source and we encourage and welcome contributions. 
-If you wish to contribute, be sure to review our [contribution guidelines](CONTRIBUTING.md) 
+The Unity Robotics projects are open-source and we encourage and welcome contributions.
+If you wish to contribute, be sure to review our [contribution guidelines](CONTRIBUTING.md)
 and [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Support
@@ -19,7 +19,7 @@ For questions or discussions about Unity Robotics package installations or how t
 
 For feature requests, bugs, or other issues, please file a [GitHub issue](https://github.com/Unity-Technologies/ROS-TCP-Endpoint/issues) using the provided templates and the Robotics team will investigate as soon as possible.
 
-For any other questions or feedback, connect directly with the 
+For any other questions or feedback, connect directly with the
 Robotics team at [unity-robotics@unity3d.com](mailto:unity-robotics@unity3d.com).
 
 ## License

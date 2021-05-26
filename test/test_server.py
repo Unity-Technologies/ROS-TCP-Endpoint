@@ -51,9 +51,7 @@ def test_unity_service_resolve_news_service(mock_resolve_message, mock_ros_servi
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     assert server.source_destination_dict == {}
     system_cmds = SysCommands(server)
-    result = system_cmds.unity_service(
-        "get_pos", "unity_interfaces.msg/RosUnitySrvMessage"
-    )
+    result = system_cmds.unity_service("get_pos", "unity_interfaces.msg/RosUnitySrvMessage")
     mock_ros_service.assert_called_once
     assert result is None
 
@@ -68,9 +66,7 @@ def test_unity_service_resolve_existing_service(mock_resolve_message, mock_ros_s
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     server.source_destination_dict = {"get_pos": mock.Mock()}
     system_cmds = SysCommands(server)
-    result = system_cmds.unity_service(
-        "get_pos", "unity_interfaces.msg/RosUnitySrvMessage"
-    )
+    result = system_cmds.unity_service("get_pos", "unity_interfaces.msg/RosUnitySrvMessage")
     mock_ros_service.assert_called_once
     assert result is None
 
@@ -87,9 +83,7 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
 
 @mock.patch.object(rospy, "Publisher")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/Pos",
+    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
 )
 def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
@@ -100,9 +94,7 @@ def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
 
 @mock.patch.object(rospy, "Publisher")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/Pos",
+    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
 )
 def test_publish_existing_topic(mock_resolve_msg, mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
@@ -128,9 +120,7 @@ def test_publish_empty_message_should_return_none():
 
 @mock.patch.object(rospy, "Subscriber")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/Pos",
+    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
 )
 def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
@@ -141,9 +131,7 @@ def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
 
 @mock.patch.object(rospy, "Subscriber")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/Pos",
+    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
 )
 def test_subscribe_to_existing_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)

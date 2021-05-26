@@ -35,9 +35,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(
-        self, node_name, buffer_size=1024, connections=2, tcp_ip="", tcp_port=-1
-    ):
+    def __init__(self, node_name, buffer_size=1024, connections=2, tcp_ip="", tcp_port=-1):
         """
         Initializes ROS node and class variables.
 
@@ -111,9 +109,7 @@ class TcpServer:
         function = getattr(self.syscommands, message.command)
         if function is None:
             self.send_unity_error(
-                "Don't understand SysCommand.'{}'({})".format(
-                    message.command, message.params_json
-                )
+                "Don't understand SysCommand.'{}'({})".format(message.command, message.params_json)
             )
             return
         else:
@@ -198,9 +194,7 @@ class SysCommands:
         if topic in self.tcp_server.source_destination_dict:
             self.tcp_server.source_destination_dict[topic].unregister()
 
-        self.tcp_server.source_destination_dict[topic] = RosService(
-            topic, message_class
-        )
+        self.tcp_server.source_destination_dict[topic] = RosService(topic, message_class)
 
     def unity_service(self, topic, message_name):
         if topic == "":
@@ -241,15 +235,11 @@ def resolve_message_name(name, extension="msg"):
             rospy.logerr("Failed to resolve module {}".format(module_name))
         module = getattr(module, extension)
         if module is None:
-            rospy.logerr(
-                "Failed to resolve module {}.{}".format(module_name, extension)
-            )
+            rospy.logerr("Failed to resolve module {}.{}".format(module_name, extension))
         module = getattr(module, class_name)
         if module is None:
             rospy.logerr(
-                "Failed to resolve module {}.{}.{}".format(
-                    module_name, extension, class_name
-                )
+                "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
             )
         return module
     except (IndexError, KeyError, AttributeError, ImportError) as e:

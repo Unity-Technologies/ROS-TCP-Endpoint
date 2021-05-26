@@ -99,11 +99,7 @@ class ClientThread(threading.Thread):
 
         while len(data) < full_message_size:
             # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
-            grab = (
-                1024
-                if full_message_size - len(data) > 1024
-                else full_message_size - len(data)
-            )
+            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
             packet = ClientThread.recvall(conn, grab)
 
             if not packet:
@@ -113,9 +109,7 @@ class ClientThread(threading.Thread):
             data += packet
 
         if full_message_size > 0 and not data:
-            rospy.logerr(
-                "No data for a message size of {}, breaking!".format(full_message_size)
-            )
+            rospy.logerr("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
         return destination, data
@@ -189,13 +183,9 @@ class ClientThread(threading.Thread):
                         continue
                     elif srv_message.topic == "__topic_list":
                         response = self.tcp_server.topic_list(data)
-                    elif (
-                        srv_message.topic
-                        not in self.tcp_server.source_destination_dict.keys()
-                    ):
+                    elif srv_message.topic not in self.tcp_server.source_destination_dict.keys():
                         error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
-                            srv_message.topic,
-                            self.tcp_server.source_destination_dict.keys(),
+                            srv_message.topic, self.tcp_server.source_destination_dict.keys()
                         )
                         self.tcp_server.send_unity_error(error_msg)
                         rospy.logerr(error_msg)
@@ -220,19 +210,13 @@ class ClientThread(threading.Thread):
                     response_message = RosUnitySrvMessage(
                         srv_message.srv_id, False, "", serial_response.getvalue()
                     )
-                    self.tcp_server.unity_tcp_sender.send_unity_message(
-                        "__srv", response_message
-                    )
+                    self.tcp_server.unity_tcp_sender.send_unity_message("__srv", response_message)
                 elif destination in self.tcp_server.source_destination_dict:
-                    ros_communicator = self.tcp_server.source_destination_dict[
-                        destination
-                    ]
+                    ros_communicator = self.tcp_server.source_destination_dict[destination]
                     response = ros_communicator.send(data)
                 else:
-                    error_msg = (
-                        "Topic '{}' is not registered! Known topics are: {} ".format(
-                            destination, self.tcp_server.source_destination_dict.keys()
-                        )
+                    error_msg = "Topic '{}' is not registered! Known topics are: {} ".format(
+                        destination, self.tcp_server.source_destination_dict.keys()
                     )
                     self.tcp_server.send_unity_error(error_msg)
                     rospy.logerr(error_msg)
