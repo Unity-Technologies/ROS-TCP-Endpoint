@@ -31,6 +31,11 @@ except:
     from Queue import Queue
     from Queue import Empty
 
+# queue module was renamed between python 2 and 3
+try:
+    from queue import Queue
+except:
+    from Queue import Queue
 
 class UnityTcpSender:
     """
