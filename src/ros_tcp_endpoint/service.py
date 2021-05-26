@@ -22,6 +22,7 @@ class RosService(RosSender):
     """
     Class to send messages to a ROS service.
     """
+
     def __init__(self, service, service_class):
         """
         Args:

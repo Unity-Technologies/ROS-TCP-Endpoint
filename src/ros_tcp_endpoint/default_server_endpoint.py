@@ -13,8 +13,9 @@ import visualization_msgs.msg
 
 from ros_tcp_endpoint import TcpServer
 
+
 def main():
-    ros_node_name = rospy.get_param("/TCP_NODE_NAME", 'TCPServer')
+    ros_node_name = rospy.get_param("/TCP_NODE_NAME", "TCPServer")
     tcp_server = TcpServer(ros_node_name)
 
     # Start the Server Endpoint
