@@ -37,6 +37,7 @@ try:
 except:
     from Queue import Queue
 
+
 class UnityTcpSender:
     """
     Connects and sends messages to the server on the Unity side.
