@@ -21,6 +21,7 @@ class RosPublisher(RosSender):
     """
     Class to publish messages to a ROS topic
     """
+
     # TODO: surface latch functionality
     def __init__(self, topic, message_class, queue_size=10):
         """
@@ -31,8 +32,8 @@ class RosPublisher(RosSender):
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
         RosSender.__init__(self)
-        self.msg = message_class()
-        self.pub = rospy.Publisher(topic, message_class, queue_size=queue_size)
+        self.msg = message_class
+        self.pub = rospy.Publisher(topic, self.msg, queue_size=queue_size)
 
     def send(self, data):
         """
