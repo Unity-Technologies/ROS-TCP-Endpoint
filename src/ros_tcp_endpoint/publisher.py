@@ -21,6 +21,7 @@ class RosPublisher(RosSender):
     """
     Class to publish messages to a ROS topic
     """
+
     # TODO: surface latch functionality
     def __init__(self, topic, message_class, queue_size=10):
         """
