@@ -20,7 +20,7 @@ from io import BytesIO
 import threading
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
-from ros_tcp_endpoint.msg import RosUnitySrvMessage
+from unity_interfaces.msg import RosUnitySrvMessage
 
 
 class ClientThread(threading.Thread):

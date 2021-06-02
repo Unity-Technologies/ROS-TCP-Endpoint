@@ -26,8 +26,8 @@ from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from .service import RosService
 from .unity_service import UnityService
-from ros_tcp_endpoint.msg import RosUnitySysCommand
-from ros_tcp_endpoint.srv import RosUnityTopicListResponse
+from unity_interfaces.msg import RosUnitySysCommand
+from unity_interfaces.srv import RosUnityTopicListResponse
 
 
 class TcpServer:

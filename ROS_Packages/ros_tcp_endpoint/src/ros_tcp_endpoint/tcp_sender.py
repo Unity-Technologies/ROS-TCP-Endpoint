@@ -19,8 +19,8 @@ import threading
 import struct
 from .client import ClientThread
 from .thread_pauser import ThreadPauser
-from ros_tcp_endpoint.msg import RosUnityError
-from ros_tcp_endpoint.msg import RosUnitySrvMessage
+from unity_interfaces.msg import RosUnityError
+from unity_interfaces.msg import RosUnitySrvMessage
 from io import BytesIO
 
 # queue module was renamed between python 2 and 3
