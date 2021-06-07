@@ -34,7 +34,7 @@ except:
 
 class UnityTcpSender:
     """
-    Connects and sends messages to the server on the Unity side.
+    Sends messages to Unity.
     """
 
     def __init__(self):
@@ -51,29 +51,55 @@ class UnityTcpSender:
         self.srv_lock = threading.Lock()
         self.services_waiting = {}
 
-    def send_unity_error(self, error):
-        self.send_unity_message("__error", RosUnityError(error))
+    def send_unity_info(self, text):
+        if self.queue is not None:
+            command = SysCommand_Log()
+            command.text = text
+            serialized_bytes = ClientThread.serialize_command("__log", command)
+            self.queue.put(serialized_bytes)
+
+    def send_unity_warning(self, text):
+        if self.queue is not None:
+            command = SysCommand_Log()
+            command.text = text
+            serialized_bytes = ClientThread.serialize_command("__warn", command)
+            self.queue.put(serialized_bytes)
+
+    def send_unity_error(self, text):
+        if self.queue is not None:
+            command = SysCommand_Log()
+            command.text = text
+            serialized_bytes = ClientThread.serialize_command("__error", command)
+            self.queue.put(serialized_bytes)
+
+    def send_ros_service_response(self, srv_id, destination, response):
+        if self.queue is not None:
+            command = SysCommand_Service()
+            command.srv_id = srv_id
+            serialized_bytes = ClientThread.serialize_command("__response", command)
+            self.queue.put(serialized_bytes)
+            self.send_unity_message(destination, response)
 
     def send_unity_message(self, topic, message):
-        serialized_message = ClientThread.serialize_message(topic, message)
         if self.queue is not None:
+            serialized_message = ClientThread.serialize_message(topic, message)
             self.queue.put(serialized_message)
 
-    def send_unity_service(self, topic, service_class, request):
-        request_bytes = BytesIO()
-        request.serialize(request_bytes)
+    def send_unity_service_request(self, topic, service_class, request):
+        if self.queue is None:
+            return None
+        
         thread_pauser = ThreadPauser()
-
         with self.srv_lock:
             srv_id = self.next_srv_id
             self.next_srv_id += 1
             self.services_waiting[srv_id] = thread_pauser
 
-        payload = request_bytes.getvalue()
-        srv_message = RosUnitySrvMessage(srv_id, True, topic, payload)
-        serialized_message = ClientThread.serialize_message("__srv", srv_message)
-        if self.queue is not None:
-            self.queue.put(serialized_message)
+        command = SysCommand_Service()
+        command.srv_id = srv_id
+        serialized_bytes = ClientThread.serialize_command("__request", command)
+        self.queue.put(serialized_bytes)
+        self.send_unity_message(topic, request)
 
         # rospy starts a new thread for each service request,
         # so it won't break anything if we sleep now while waiting for the response
@@ -130,3 +156,9 @@ class UnityTcpSender:
             with self.queue_lock:
                 if self.queue is local_queue:
                     self.queue = None
+
+class SysCommand_Log:
+    text = ""
+
+class SysCommand_Service:
+    srv_id = 0

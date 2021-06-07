@@ -61,6 +61,8 @@ class TcpServer:
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
+        self.pending_srv_id = None
+        self.pending_srv_is_request = False
 
     def start(self, source_destination_dict=None):
         if source_destination_dict is not None:
@@ -96,7 +98,7 @@ class TcpServer:
         self.unity_tcp_sender.send_unity_message(topic, message)
 
     def send_unity_service(self, topic, service_class, request):
-        return self.unity_tcp_sender.send_unity_service(topic, service_class, request)
+        return self.unity_tcp_sender.send_unity_service_request(topic, service_class, request)
 
     def send_unity_service_response(self, srv_id, data):
         self.unity_tcp_sender.send_unity_service_response(srv_id, data)
@@ -104,18 +106,17 @@ class TcpServer:
     def topic_list(self, data):
         return RosUnityTopicListResponse(self.source_destination_dict.keys())
 
-    def handle_syscommand(self, data):
-        message = RosUnitySysCommand().deserialize(data)
-        function = getattr(self.syscommands, message.command)
+    def handle_syscommand(self, topic, data):
+        function = getattr(self.syscommands, topic[2:])
         if function is None:
             self.send_unity_error(
-                "Don't understand SysCommand.'{}'({})".format(message.command, message.params_json)
+                "Don't understand SysCommand.'{}'".format(topic)
             )
             return
         else:
-            params = json.loads(message.params_json)
+            message_json = data.decode("utf-8")
+            params = json.loads(message_json)
             function(**params)
-
 
 class SysCommands:
     def __init__(self, tcp_server):
@@ -222,6 +223,15 @@ class SysCommands:
         self.tcp_server.source_destination_dict[topic] = UnityService(
             topic.encode("ascii"), message_class, self.tcp_server
         )
+        
+    def response(self, srv_id): # the next message is a service response
+        self.tcp_server.pending_srv_id = srv_id 
+        self.tcp_server.pending_srv_is_request = False
+
+    def request(self, srv_id): # the next message is a service request
+        self.tcp_server.pending_srv_id = srv_id 
+        self.tcp_server.pending_srv_is_request = True
+
 
 
 def resolve_message_name(name, extension="msg"):
