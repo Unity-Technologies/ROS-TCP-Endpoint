@@ -19,8 +19,6 @@ import threading
 import struct
 from .client import ClientThread
 from .thread_pauser import ThreadPauser
-from unity_interfaces.msg import RosUnityError
-from unity_interfaces.msg import RosUnitySrvMessage
 from io import BytesIO
 
 # queue module was renamed between python 2 and 3
@@ -116,6 +114,16 @@ class UnityTcpSender:
 
         thread_pauser.resume_with_result(data)
 
+    def send_topic_list(self):
+        if self.queue is not None:
+            rospy.loginfo("Sending topic list")
+            topic_list = SysCommand_TopicsResponse()
+            topics_and_types = rospy.get_published_topics()
+            topic_list.topics = [item[0] for item in topics_and_types]
+            topic_list.types = [item[1] for item in topics_and_types]
+            serialized_bytes = ClientThread.serialize_command("__topic_list", topic_list)
+            self.queue.put(serialized_bytes)
+
     def start_sender(self, conn, halt_event):
         sender_thread = threading.Thread(
             target=self.sender_loop, args=(conn, self.sender_id, halt_event)
@@ -162,3 +170,7 @@ class SysCommand_Log:
 
 class SysCommand_Service:
     srv_id = 0
+
+class SysCommand_TopicsResponse:
+    topics = []
+    types = []

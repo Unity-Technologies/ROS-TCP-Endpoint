@@ -26,8 +26,6 @@ from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from .service import RosService
 from .unity_service import UnityService
-from unity_interfaces.msg import RosUnitySysCommand
-from unity_interfaces.srv import RosUnityTopicListResponse
 
 
 class TcpServer:
@@ -102,9 +100,6 @@ class TcpServer:
 
     def send_unity_service_response(self, srv_id, data):
         self.unity_tcp_sender.send_unity_service_response(srv_id, data)
-
-    def topic_list(self, data):
-        return RosUnityTopicListResponse(self.source_destination_dict.keys())
 
     def handle_syscommand(self, topic, data):
         function = getattr(self.syscommands, topic[2:])
@@ -232,6 +227,8 @@ class SysCommands:
         self.tcp_server.pending_srv_id = srv_id 
         self.tcp_server.pending_srv_is_request = True
 
+    def topic_list(self):
+        self.tcp_server.unity_tcp_sender.send_topic_list()
 
 
 def resolve_message_name(name, extension="msg"):
