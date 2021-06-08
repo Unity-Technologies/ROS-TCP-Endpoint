@@ -116,7 +116,6 @@ class UnityTcpSender:
 
     def send_topic_list(self):
         if self.queue is not None:
-            rospy.loginfo("Sending topic list")
             topic_list = SysCommand_TopicsResponse()
             topics_and_types = rospy.get_published_topics()
             topic_list.topics = [item[0] for item in topics_and_types]

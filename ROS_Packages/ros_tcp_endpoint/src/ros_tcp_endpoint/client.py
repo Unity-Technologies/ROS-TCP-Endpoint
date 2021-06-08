@@ -216,7 +216,6 @@ class ClientThread(threading.Thread):
                     pass
                 elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
-                    rospy.loginfo(destination)
                     self.tcp_server.handle_syscommand(destination, data)
                 elif destination in self.tcp_server.source_destination_dict:
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
