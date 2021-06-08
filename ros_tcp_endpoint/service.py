@@ -12,8 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import rospy
-from rospy.service import ServiceException
+import rclpy
+import re
+
+from rclpy.serialization import deserialize_message
 
 from .communication import RosSender
 
@@ -22,16 +24,21 @@ class RosService(RosSender):
     """
     Class to send messages to a ROS service.
     """
-
     def __init__(self, service, service_class):
         """
         Args:
             service:        The service name in ROS
             service_class:  The service class in catkin workspace
         """
-        RosSender.__init__(self)
-        self.srv_class = service_class._request_class()
-        self.srv = rospy.ServiceProxy(service, service_class)
+        strippedService = re.sub('[^A-Za-z0-9_]+', '', service)
+        node_name = f'{strippedService}_RosService'
+        RosSender.__init__(self, node_name)
+        
+        self.cli = self.create_client(service_class, service)
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'{service} not available, waiting again...')
+        self.req = service_class.Request()
+
 
     def send(self, data):
         """
@@ -45,21 +52,23 @@ class RosService(RosSender):
         Returns:
             service response
         """
-        message = self.srv_class.deserialize(data)
+        message_type = type(self.req)
+        message = deserialize_message(data, message_type)
 
-        attempt = 0
+        self.future = self.cli.call_async(message)
 
-        while attempt < 3:
-            try:
-                service_response = self.srv(message)
-                return service_response
-            except ServiceException:
-                attempt += 1
-                print("Service Exception raised. Attempt: {}".format(attempt))
-            except Exception as e:
-                print("Exception Raised: {}".format(e))
+        while rclpy.ok():
+            if self.future.done():
+                try:
+                    response = self.future.result()
+                    return response
+                except Exception as e:
+                    self.get_logger().info(f'Service call failed {e}')
+
+                break
 
         return None
+
 
     def unregister(self):
         """
@@ -67,5 +76,5 @@ class RosService(RosSender):
         Returns:
 
         """
-        if not self.srv is None:
-            self.srv.close()
+        self.destroy_client(self.cli)
+        self.destroy_node()

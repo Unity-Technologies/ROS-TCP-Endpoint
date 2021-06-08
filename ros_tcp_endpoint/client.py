@@ -12,13 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import rclpy
 import struct
-import socket
-import rospy
-from io import BytesIO
 
 import threading
 import json
+
+from rclpy.serialization import deserialize_message
+from rclpy.serialization import serialize_message
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
 
@@ -28,7 +29,6 @@ class ClientThread(threading.Thread):
     Thread class to read all data from a connection and pass along the data to the
     desired source.
     """
-
     def __init__(self, conn, tcp_server, incoming_ip, incoming_port):
         """
         Set class variables
@@ -66,11 +66,10 @@ class ClientThread(threading.Thread):
 
         """
         raw_bytes = ClientThread.recvall(conn, 4)
-        num = struct.unpack("<I", raw_bytes)[0]
+        num = struct.unpack('<I', raw_bytes)[0]
         return num
 
-    @staticmethod
-    def read_string(conn):
+    def read_string(self):
         """
         Reads int32 from socket connection to determine how many bytes to
         read to get the string that follows. Read that number of bytes and
@@ -79,39 +78,39 @@ class ClientThread(threading.Thread):
         Returns: string
 
         """
-        str_len = ClientThread.read_int32(conn)
+        str_len = ClientThread.read_int32(self.conn)
 
-        str_bytes = ClientThread.recvall(conn, str_len)
-        decoded_str = str_bytes.decode("utf-8")
+        str_bytes = ClientThread.recvall(self.conn, str_len)
+        decoded_str = str_bytes.decode('utf-8')
 
         return decoded_str
 
-    @staticmethod
-    def read_message(conn):
+    def read_message(self):
         """
         Decode destination and full message size from socket connection.
         Grab bytes in chunks until full message has been read.
         """
-        data = b""
+        data = b''
 
-        destination = ClientThread.read_string(conn)
-        full_message_size = ClientThread.read_int32(conn)
+        destination = self.read_string()
+        full_message_size = ClientThread.read_int32(self.conn)
 
         while len(data) < full_message_size:
             # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
             grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = ClientThread.recvall(conn, grab)
+            packet = ClientThread.recvall(self.conn, grab)
 
             if not packet:
-                rospy.logerr("No packets...")
+                self.logerr("No packets...")
                 break
 
             data += packet
 
         if full_message_size > 0 and not data:
-            rospy.logerr("No data for a message size of {}, breaking!".format(full_message_size))
+            self.logerr("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
+        destination = destination.rstrip('\x00')
         return destination, data
 
     @staticmethod
@@ -126,22 +125,14 @@ class ClientThread(threading.Thread):
         Returns:
             serialized destination and message as a list of bytes
         """
-        dest_bytes = destination.encode("utf-8")
+        dest_bytes = destination.encode('utf-8')
         length = len(dest_bytes)
-        dest_info = struct.pack("<I%ss" % length, length, dest_bytes)
+        dest_info = struct.pack('<I%ss' % length, length, dest_bytes)
 
-        serial_response = BytesIO()
-        message.serialize(serial_response)
+        serial_response = serialize_message(message)
 
-        # Per documention, https://docs.python.org/3.8/library/io.html#io.IOBase.seek,
-        # seek to end of stream for length
-        # SEEK_SET or 0 - start of the stream (the default); offset should be zero or positive
-        # SEEK_CUR or 1 - current stream position; offset may be negative
-        # SEEK_END or 2 - end of the stream; offset is usually negative
-        response_len = serial_response.seek(0, 2)
-
-        msg_length = struct.pack("<I", response_len)
-        serialized_message = dest_info + msg_length + serial_response.getvalue()
+        msg_length = struct.pack('<I', len(serial_response))
+        serialized_message = dest_info + msg_length + serial_response
 
         return serialized_message
 
@@ -156,14 +147,14 @@ class ClientThread(threading.Thread):
         json_info = struct.pack("<I%ss" % json_length, json_length, json_bytes)
 
         return cmd_info + json_info
-
+        
     def send_ros_service_request(self, srv_id, destination, data):
         if destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
                 destination, self.tcp_server.source_destination_dict.keys()
             )
             self.tcp_server.send_unity_error(error_msg)
-            rospy.logerr(error_msg)
+            self.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
         else:
@@ -176,12 +167,18 @@ class ClientThread(threading.Thread):
                     destination
                 )
                 self.tcp_server.send_unity_error(error_msg)
-                rospy.logerr(error_msg)
+                self.logerr(error_msg)
                 # TODO: send a response to Unity anyway?
                 return
 
         self.tcp_server.unity_tcp_sender.send_ros_service_response(srv_id, destination, response)
 
+    def loginfo(self, text):
+        self.tcp_server.get_logger().info(text)
+
+    def logerr(self, text):
+        self.tcp_server.get_logger().error(text)
+        
     def run(self):
         """
         Read a message and determine where to send it based on the source_destination_dict
@@ -197,13 +194,13 @@ class ClientThread(threading.Thread):
             msg: the ROS msg type as bytes
 
         """
-        rospy.loginfo("Connection from {}".format(self.incoming_ip))
+        self.loginfo("Connection from {}".format(self.incoming_ip))
         halt_event = threading.Event()
         self.tcp_server.unity_tcp_sender.start_sender(self.conn, halt_event)
         try:
             while not halt_event.is_set():
-                destination, data = self.read_message(self.conn)
-                
+                destination, data = self.read_message()
+
                 if self.tcp_server.pending_srv_id is not None:
                     # if we've been told that the next message will be a service request/response, process it as such
                     if self.tcp_server.pending_srv_is_request:
@@ -212,23 +209,22 @@ class ClientThread(threading.Thread):
                         self.tcp_server.send_unity_service_response(self.tcp_server.pending_srv_id, data)
                     self.tcp_server.pending_srv_id = None
                 elif destination == "":
-                    # ignore this keepalive message, listen for more
+                    #ignore this keepalive message, listen for more
                     pass
                 elif destination.startswith("__"):
-                    # handle a system command, such as registering new topics
+                    #handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
                 elif destination in self.tcp_server.source_destination_dict:
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
                     response = ros_communicator.send(data)
                 else:
-                    error_msg = "Topic '{}' is not registered! Known topics are: {} ".format(
-                        destination, self.tcp_server.source_destination_dict.keys()
-                    )
+                    error_msg = "Topic '{}' is not registered! Known topics are: {} "\
+                        .format(destination, self.tcp_server.source_destination_dict.keys())
                     self.tcp_server.send_unity_error(error_msg)
-                    rospy.logerr(error_msg)
+                    self.logerr(error_msg)
         except IOError as e:
-            rospy.logerr("Exception: {}".format(e))
+            self.logerr("Exception: {}".format(e))
         finally:
             halt_event.set()
             self.conn.close()
-            rospy.loginfo("Disconnected from {}".format(self.incoming_ip))
+            self.loginfo("Disconnected from {}".format(self.incoming_ip));

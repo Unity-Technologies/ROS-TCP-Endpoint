@@ -12,7 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import rospy
+import rclpy
+import re
+
+from rclpy.serialization import deserialize_message
 
 from .communication import RosSender
 
@@ -21,7 +24,6 @@ class RosPublisher(RosSender):
     """
     Class to publish messages to a ROS topic
     """
-
     # TODO: surface latch functionality
     def __init__(self, topic, message_class, queue_size=10):
         """
@@ -31,9 +33,11 @@ class RosPublisher(RosSender):
             message_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        RosSender.__init__(self)
+        strippedTopic = re.sub('[^A-Za-z0-9_]+', '', topic)
+        node_name = f'{strippedTopic}_RosPublisher'
+        RosSender.__init__(self, node_name)
         self.msg = message_class()
-        self.pub = rospy.Publisher(topic, message_class, queue_size=queue_size)
+        self.pub = self.create_publisher(message_class, topic, queue_size)
 
     def send(self, data):
         """
@@ -46,8 +50,10 @@ class RosPublisher(RosSender):
         Returns:
             None: Explicitly return None so behaviour can be
         """
-        self.msg.deserialize(data)
-        self.pub.publish(self.msg)
+        #message_type = type(self.msg)
+        #message = deserialize_message(data, message_type)
+
+        self.pub.publish(data)
 
         return None
 
@@ -57,4 +63,5 @@ class RosPublisher(RosSender):
         Returns:
 
         """
-        self.pub.unregister()
+        self.destroy_publisher(self.pub)
+        self.destroy_node()
