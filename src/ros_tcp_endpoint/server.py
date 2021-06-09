@@ -216,7 +216,7 @@ class SysCommands:
             self.tcp_server.source_destination_dict[topic].unregister()
 
         self.tcp_server.source_destination_dict[topic] = UnityService(
-            topic.encode("ascii"), message_class, self.tcp_server
+            topic, message_class, self.tcp_server
         )
         
     def response(self, srv_id): # the next message is a service response
