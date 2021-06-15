@@ -167,18 +167,22 @@ class ClientThread(threading.Thread):
             # TODO: send a response to Unity anyway?
             return
         else:
-            ros_communicator = self.tcp_server.source_destination_dict[
+            ros_communicator = self.tcp_server.source_destination_dict[destination]
+            service_thread = threading.Thread(target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator))
+            service_thread.daemon = True
+            service_thread.start()
+
+    def service_call_thread(self, srv_id, destination, data, ros_communicator):
+        response = ros_communicator.send(data)
+        
+        if not response:
+            error_msg = "No response data from service '{}'!".format(
                 destination
-            ]
-            response = ros_communicator.send(data)
-            if not response:
-                error_msg = "No response data from service '{}'!".format(
-                    destination
-                )
-                self.tcp_server.send_unity_error(error_msg)
-                rospy.logerr(error_msg)
-                # TODO: send a response to Unity anyway?
-                return
+            )
+            self.tcp_server.send_unity_error(error_msg)
+            rospy.logerr(error_msg)
+            # TODO: send a response to Unity anyway?
+            return
 
         self.tcp_server.unity_tcp_sender.send_ros_service_response(srv_id, destination, response)
 
