@@ -168,17 +168,17 @@ class ClientThread(threading.Thread):
             return
         else:
             ros_communicator = self.tcp_server.source_destination_dict[destination]
-            service_thread = threading.Thread(target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator))
+            service_thread = threading.Thread(
+                target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
+            )
             service_thread.daemon = True
             service_thread.start()
 
     def service_call_thread(self, srv_id, destination, data, ros_communicator):
         response = ros_communicator.send(data)
-        
+
         if not response:
-            error_msg = "No response data from service '{}'!".format(
-                destination
-            )
+            error_msg = "No response data from service '{}'!".format(destination)
             self.tcp_server.send_unity_error(error_msg)
             rospy.logerr(error_msg)
             # TODO: send a response to Unity anyway?
@@ -207,13 +207,17 @@ class ClientThread(threading.Thread):
         try:
             while not halt_event.is_set():
                 destination, data = self.read_message(self.conn)
-                
+
                 if self.tcp_server.pending_srv_id is not None:
                     # if we've been told that the next message will be a service request/response, process it as such
                     if self.tcp_server.pending_srv_is_request:
-                        self.send_ros_service_request(self.tcp_server.pending_srv_id, destination, data)
+                        self.send_ros_service_request(
+                            self.tcp_server.pending_srv_id, destination, data
+                        )
                     else:
-                        self.tcp_server.send_unity_service_response(self.tcp_server.pending_srv_id, data)
+                        self.tcp_server.send_unity_service_response(
+                            self.tcp_server.pending_srv_id, data
+                        )
                     self.tcp_server.pending_srv_id = None
                 elif destination == "":
                     # ignore this keepalive message, listen for more

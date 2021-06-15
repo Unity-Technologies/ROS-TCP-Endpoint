@@ -86,7 +86,7 @@ class UnityTcpSender:
     def send_unity_service_request(self, topic, service_class, request):
         if self.queue is None:
             return None
-        
+
         thread_pauser = ThreadPauser()
         with self.srv_lock:
             srv_id = self.next_srv_id
@@ -164,11 +164,14 @@ class UnityTcpSender:
                 if self.queue is local_queue:
                     self.queue = None
 
+
 class SysCommand_Log:
     text = ""
 
+
 class SysCommand_Service:
     srv_id = 0
+
 
 class SysCommand_TopicsResponse:
     topics = []

@@ -104,14 +104,13 @@ class TcpServer:
     def handle_syscommand(self, topic, data):
         function = getattr(self.syscommands, topic[2:])
         if function is None:
-            self.send_unity_error(
-                "Don't understand SysCommand.'{}'".format(topic)
-            )
+            self.send_unity_error("Don't understand SysCommand.'{}'".format(topic))
             return
         else:
             message_json = data.decode("utf-8")
             params = json.loads(message_json)
             function(**params)
+
 
 class SysCommands:
     def __init__(self, tcp_server):
@@ -218,13 +217,13 @@ class SysCommands:
         self.tcp_server.source_destination_dict[topic] = UnityService(
             topic, message_class, self.tcp_server
         )
-        
-    def response(self, srv_id): # the next message is a service response
-        self.tcp_server.pending_srv_id = srv_id 
+
+    def response(self, srv_id):  # the next message is a service response
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = False
 
-    def request(self, srv_id): # the next message is a service request
-        self.tcp_server.pending_srv_id = srv_id 
+    def request(self, srv_id):  # the next message is a service request
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = True
 
     def topic_list(self):
