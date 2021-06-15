@@ -34,9 +34,8 @@ class RosService(RosSender):
         node_name = f'{strippedService}_RosService'
         RosSender.__init__(self, node_name)
         
+        self.service_topic = service
         self.cli = self.create_client(service_class, service)
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f'{service} not available, waiting again...')
         self.req = service_class.Request()
 
 
@@ -55,6 +54,10 @@ class RosService(RosSender):
         message_type = type(self.req)
         message = deserialize_message(data, message_type)
 
+        if not self.cli.service_is_ready():
+            self.get_logger().error('Ignoring service call to {} - service is not ready.'.format(self.service_topic))
+            return None
+            
         self.future = self.cli.call_async(message)
 
         while rclpy.ok():
