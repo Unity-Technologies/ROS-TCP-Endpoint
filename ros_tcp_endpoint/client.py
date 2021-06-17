@@ -29,6 +29,7 @@ class ClientThread(threading.Thread):
     Thread class to read all data from a connection and pass along the data to the
     desired source.
     """
+
     def __init__(self, conn, tcp_server, incoming_ip, incoming_port):
         """
         Set class variables
@@ -66,7 +67,7 @@ class ClientThread(threading.Thread):
 
         """
         raw_bytes = ClientThread.recvall(conn, 4)
-        num = struct.unpack('<I', raw_bytes)[0]
+        num = struct.unpack("<I", raw_bytes)[0]
         return num
 
     def read_string(self):
@@ -81,24 +82,24 @@ class ClientThread(threading.Thread):
         str_len = ClientThread.read_int32(self.conn)
 
         str_bytes = ClientThread.recvall(self.conn, str_len)
-        decoded_str = str_bytes.decode('utf-8')
+        decoded_str = str_bytes.decode("utf-8")
 
         return decoded_str
 
-    def read_message(self):
+    def read_message(self, conn):
         """
         Decode destination and full message size from socket connection.
         Grab bytes in chunks until full message has been read.
         """
-        data = b''
+        data = b""
 
         destination = self.read_string()
-        full_message_size = ClientThread.read_int32(self.conn)
+        full_message_size = ClientThread.read_int32(conn)
 
         while len(data) < full_message_size:
             # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
             grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = ClientThread.recvall(self.conn, grab)
+            packet = ClientThread.recvall(conn, grab)
 
             if not packet:
                 self.logerr("No packets...")
@@ -110,7 +111,7 @@ class ClientThread(threading.Thread):
             self.logerr("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
-        destination = destination.rstrip('\x00')
+        destination = destination.rstrip("\x00")
         return destination, data
 
     @staticmethod
@@ -125,13 +126,13 @@ class ClientThread(threading.Thread):
         Returns:
             serialized destination and message as a list of bytes
         """
-        dest_bytes = destination.encode('utf-8')
+        dest_bytes = destination.encode("utf-8")
         length = len(dest_bytes)
-        dest_info = struct.pack('<I%ss' % length, length, dest_bytes)
+        dest_info = struct.pack("<I%ss" % length, length, dest_bytes)
 
         serial_response = serialize_message(message)
 
-        msg_length = struct.pack('<I', len(serial_response))
+        msg_length = struct.pack("<I", len(serial_response))
         serialized_message = dest_info + msg_length + serial_response
 
         return serialized_message
@@ -147,7 +148,7 @@ class ClientThread(threading.Thread):
         json_info = struct.pack("<I%ss" % json_length, json_length, json_bytes)
 
         return cmd_info + json_info
-        
+
     def send_ros_service_request(self, srv_id, destination, data):
         if destination not in self.tcp_server.source_destination_dict.keys():
             error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
@@ -159,17 +160,17 @@ class ClientThread(threading.Thread):
             return
         else:
             ros_communicator = self.tcp_server.source_destination_dict[destination]
-            service_thread = threading.Thread(target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator))
+            service_thread = threading.Thread(
+                target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
+            )
             service_thread.daemon = True
             service_thread.start()
 
     def service_call_thread(self, srv_id, destination, data, ros_communicator):
         response = ros_communicator.send(data)
-        
+
         if not response:
-            error_msg = "No response data from service '{}'!".format(
-                destination
-            )
+            error_msg = "No response data from service '{}'!".format(destination)
             self.tcp_server.send_unity_error(error_msg)
             self.logerr(error_msg)
             # TODO: send a response to Unity anyway?
@@ -182,7 +183,7 @@ class ClientThread(threading.Thread):
 
     def logerr(self, text):
         self.tcp_server.get_logger().error(text)
-        
+
     def run(self):
         """
         Read a message and determine where to send it based on the source_destination_dict
@@ -203,27 +204,32 @@ class ClientThread(threading.Thread):
         self.tcp_server.unity_tcp_sender.start_sender(self.conn, halt_event)
         try:
             while not halt_event.is_set():
-                destination, data = self.read_message()
+                destination, data = self.read_message(self.conn)
 
                 if self.tcp_server.pending_srv_id is not None:
                     # if we've been told that the next message will be a service request/response, process it as such
                     if self.tcp_server.pending_srv_is_request:
-                        self.send_ros_service_request(self.tcp_server.pending_srv_id, destination, data)
+                        self.send_ros_service_request(
+                            self.tcp_server.pending_srv_id, destination, data
+                        )
                     else:
-                        self.tcp_server.send_unity_service_response(self.tcp_server.pending_srv_id, data)
+                        self.tcp_server.send_unity_service_response(
+                            self.tcp_server.pending_srv_id, data
+                        )
                     self.tcp_server.pending_srv_id = None
                 elif destination == "":
-                    #ignore this keepalive message, listen for more
+                    # ignore this keepalive message, listen for more
                     pass
                 elif destination.startswith("__"):
-                    #handle a system command, such as registering new topics
+                    # handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
                 elif destination in self.tcp_server.source_destination_dict:
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
                     response = ros_communicator.send(data)
                 else:
-                    error_msg = "Topic '{}' is not registered! Known topics are: {} "\
-                        .format(destination, self.tcp_server.source_destination_dict.keys())
+                    error_msg = "Topic '{}' is not registered! Known topics are: {} ".format(
+                        destination, self.tcp_server.source_destination_dict.keys()
+                    )
                     self.tcp_server.send_unity_error(error_msg)
                     self.logerr(error_msg)
         except IOError as e:
@@ -231,4 +237,4 @@ class ClientThread(threading.Thread):
         finally:
             halt_event.set()
             self.conn.close()
-            self.loginfo("Disconnected from {}".format(self.incoming_ip));
+            self.loginfo("Disconnected from {}".format(self.incoming_ip))
