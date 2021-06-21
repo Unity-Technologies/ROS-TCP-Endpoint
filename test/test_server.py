@@ -87,7 +87,7 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
 )
 def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
-    result = SysCommands(server).publish("object_pos_topic", "pos")
+    result = SysCommands(server).publish("object_pos_topic", "unity_interfaces/Pos")
     assert server.source_destination_dict != {}
     mock_ros_publisher.assert_called_once
 
