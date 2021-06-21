@@ -34,7 +34,7 @@ def test_send_message_should_serialize_message(mock_serialize_msg):
 @mock.patch.object(ros_tcp_endpoint.client.ClientThread, "serialize_message")
 def test_send_unity_service_should_serialize_ros_unity_srv(mock_serialize_msg, mock_thread_pauser):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
-    sender.send_unity_service(mock.Mock(), mock.Mock(), mock.Mock())
+    sender.send_unity_service_request(mock.Mock(), mock.Mock(), mock.Mock())
     mock_serialize_msg.assert_called_once()
     # TODO: Test the scenario when the queue is not None
     assert sender.queue == None
