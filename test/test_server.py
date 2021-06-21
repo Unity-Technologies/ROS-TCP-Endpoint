@@ -90,9 +90,6 @@ def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
 
 
 @mock.patch.object(rospy, "Publisher")
-@mock.patch.object(
-    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
-)
 def test_publish_existing_topic(mock_resolve_msg, mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     server.source_destination_dict = {"object_pos_topic": mock.Mock()}
