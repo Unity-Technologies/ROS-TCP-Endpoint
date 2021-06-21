@@ -26,6 +26,7 @@ def test_send_unity_error_should_send_msg(mock_serialize_msg, mock_socket):
 @mock.patch.object(ros_tcp_endpoint.client.ClientThread, "serialize_message")
 def test_send_message_should_serialize_message(mock_serialize_msg):
     sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
+    sender.queue = queue.Queue()
     sender.send_unity_message("test topic", "test msg")
     mock_serialize_msg.assert_called_once()
 
