@@ -82,7 +82,7 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
 
 
 @mock.patch.object(rospy, "Publisher")
-def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
+def test_publish_add_new_topic(mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
     assert server.source_destination_dict != {}
@@ -90,7 +90,7 @@ def test_publish_add_new_topic(mock_resolve_msg, mock_ros_publisher):
 
 
 @mock.patch.object(rospy, "Publisher")
-def test_publish_existing_topic(mock_resolve_msg, mock_ros_publisher):
+def test_publish_existing_topic(mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     server.source_destination_dict = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
