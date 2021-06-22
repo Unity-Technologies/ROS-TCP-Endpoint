@@ -81,6 +81,23 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
     assert result is not None
 
 
+@mock.patch.object(rospy, "Publisher")
+def test_publish_add_new_topic(mock_ros_publisher):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
+    assert server.source_destination_dict != {}
+    mock_ros_publisher.assert_called_once
+
+
+@mock.patch.object(rospy, "Publisher")
+def test_publish_existing_topic(mock_ros_publisher):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    server.source_destination_dict = {"object_pos_topic": mock.Mock()}
+    result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
+    assert server.source_destination_dict["object_pos_topic"] is not None
+    mock_ros_publisher.assert_called_once
+
+
 def test_publish_empty_topic_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("", "pos")
@@ -93,9 +110,6 @@ def test_publish_empty_message_should_return_none():
     result = SysCommands(server).publish("test-topic", "")
     assert result is None
     assert server.source_destination_dict == {}
-
-
-# TODO: Add publisher tests
 
 
 @mock.patch.object(rospy, "Subscriber")
