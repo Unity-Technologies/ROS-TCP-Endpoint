@@ -4,7 +4,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            package='ros2_tcp_endpoint',
+            package='ros_tcp_endpoint',
             executable='default_server_endpoint',
             emulate_tty=True,
             parameters=[
