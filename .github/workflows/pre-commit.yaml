@@ -8,13 +8,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            - run: |
-                - echo $PATH
-                - pwd
             - uses: actions/setup-python@v2
               with:
                   python-version: 3.7.x
-            - run: |
-                  - echo $PATH
-                  - pwd
-            - uses: pre-commit/action@v2.0.3
