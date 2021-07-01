@@ -37,7 +37,7 @@ class TcpServer(Node):
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip=None, tcp_port=None):
         """
         Initializes ROS node and class variables.
 
@@ -48,15 +48,17 @@ class TcpServer(Node):
         """
         super().__init__(node_name)
 
-        self.declare_parameter("ROS_IP", "127.0.0.1")
+        self.declare_parameter("ROS_IP", "0.0.0.0")
         self.declare_parameter("ROS_TCP_PORT", 10000)
 
-        if tcp_ip != "":
+        if tcp_ip:
+            self.get_logger().log("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
             self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
-            
-        if tcp_port != -1:
+
+        if tcp_port:
+            self.get_logger().log("Using ROS_TCP_PORT override from constructor: {}".format(tcp_port))
             self.tcp_port = tcp_port
         else:
             self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
@@ -70,7 +72,7 @@ class TcpServer(Node):
         self.syscommands = SysCommands(self)
         self.pending_srv_id = None
         self.pending_srv_is_request = False
-        
+
     def start(self, source_destination_dict=None):
         if source_destination_dict is not None:
             self.source_destination_dict = source_destination_dict
@@ -78,7 +80,7 @@ class TcpServer(Node):
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
         server_thread.start()
-        
+
     def listen_loop(self):
         """
             Creates and binds sockets using TCP variables then listens for incoming connections.
@@ -91,7 +93,7 @@ class TcpServer(Node):
 
         while True:
             tcp_server.listen(self.connections)
-            
+
             try:
                 (conn, (ip, port)) = tcp_server.accept()
                 ClientThread(conn, self, ip, port).start()
@@ -118,7 +120,6 @@ class TcpServer(Node):
             message_json = data.decode("utf-8")[:-1]
             params = json.loads(message_json)
             function(**params)
-
 
     def setup_executor(self):
         """
@@ -155,6 +156,7 @@ class TcpServer(Node):
 
         self.destroy_node()
 
+
 class SysCommands:
     def __init__(self, tcp_server):
         self.tcp_server = tcp_server
@@ -169,7 +171,7 @@ class SysCommands:
         if message_class is None:
             self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
             return
-        
+
         self.tcp_server.unregister_node(topic)
 
         new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
@@ -191,9 +193,9 @@ class SysCommands:
             return
 
         self.tcp_server.unregister_node(topic)
-                
+
         new_publisher = RosPublisher(topic, message_class, queue_size=10)
-        
+
         self.tcp_server.source_destination_dict[topic] = new_publisher
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
@@ -207,11 +209,12 @@ class SysCommands:
             return
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
-            self.tcp_server.send_unity_error("RegisterRosService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+            self.tcp_server.send_unity_error(
+                "RegisterRosService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
             return
 
         self.tcp_server.unregister_node(topic)
-        
+
         new_service = RosService(topic, message_class)
 
         self.tcp_server.source_destination_dict[topic] = new_service
@@ -219,7 +222,7 @@ class SysCommands:
             self.tcp_server.executor.add_node(new_service)
 
         self.tcp_server.get_logger().info("RegisterRosService({}, {}) OK".format(topic, message_class))
-        
+
     def unity_service(self, topic, message_name):
         if topic == '':
             self.tcp_server.send_unity_error(
@@ -228,7 +231,8 @@ class SysCommands:
 
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
-            self.tcp_server.send_unity_error("RegisterUnityService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+            self.tcp_server.send_unity_error(
+                "RegisterUnityService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
             return
 
         self.tcp_server.unregister_node(topic)
@@ -238,15 +242,15 @@ class SysCommands:
         self.tcp_server.source_destination_dict[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
-        
+
         self.tcp_server.get_logger().info("RegisterUnityService({}, {}) OK".format(topic, message_class))
 
-    def response(self, srv_id): # the next message is a service response
-        self.tcp_server.pending_srv_id = srv_id 
+    def response(self, srv_id):  # the next message is a service response
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = False
 
-    def request(self, srv_id): # the next message is a service request
-        self.tcp_server.pending_srv_id = srv_id 
+    def request(self, srv_id):  # the next message is a service request
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = True
 
     def topic_list(self):
@@ -257,7 +261,7 @@ class SysCommands:
             names = name.split('/')
             module_name = names[0]
             class_name = names[1]
-            importlib.import_module(module_name+ "." + extension)
+            importlib.import_module(module_name + "." + extension)
             module = sys.modules[module_name]
             if module is None:
                 self.tcp_server.get_logger().error("Failed to resolve module {}".format(module_name))
@@ -266,7 +270,8 @@ class SysCommands:
                 self.tcp_server.get_logger().error("Failed to resolve module {}.{}".format(module_name, extension))
             module = getattr(module, class_name)
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
             return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
             self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
