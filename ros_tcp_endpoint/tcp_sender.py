@@ -125,7 +125,10 @@ class UnityTcpSender:
             topic_list = SysCommand_TopicsResponse()
             topics_and_types = self.tcp_server.get_topic_names_and_types()
             topic_list.topics = [item[0] for item in topics_and_types]
-            topic_list.types = [item[1][0].replace("/msg/", "/") for item in topics_and_types]
+            if isinstance(topics_and_types[0][1], str):
+                topic_list.types = [item[1].replace("/msg/", "/") for item in topics_and_types]
+            else:
+                topic_list.types = [item[1][0].replace("/msg/", "/") for item in topics_and_types]
             serialized_bytes = ClientThread.serialize_command("__topic_list", topic_list)
             self.queue.put(serialized_bytes)
 
