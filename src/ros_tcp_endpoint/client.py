@@ -21,6 +21,7 @@ import threading
 import json
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
+from ros_tcp_endpoint.msg import RosUnitySrvMessage
 
 
 class ClientThread(threading.Thread):
