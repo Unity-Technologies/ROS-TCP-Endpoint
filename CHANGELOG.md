@@ -20,6 +20,24 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Fixed
 
+## [0.5.0] - 2021-07-15
+
+### Upgrade Notes
+
+Upgrade the ROS communication to support ROS2 with Unity
+
+### Known Issues
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
 ## [0.4.0] - 2021-05-27
 
 Note: the logs only reflects the changes from version 0.3.0
