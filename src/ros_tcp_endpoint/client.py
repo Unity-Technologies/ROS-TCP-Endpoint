@@ -18,9 +18,9 @@ import rospy
 from io import BytesIO
 
 import threading
+import json
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
-from ros_tcp_endpoint.msg import RosUnitySrvMessage
 
 
 class ClientThread(threading.Thread):
@@ -145,6 +145,47 @@ class ClientThread(threading.Thread):
 
         return serialized_message
 
+    @staticmethod
+    def serialize_command(command, params):
+        cmd_bytes = command.encode("utf-8")
+        cmd_length = len(cmd_bytes)
+        cmd_info = struct.pack("<I%ss" % cmd_length, cmd_length, cmd_bytes)
+
+        json_bytes = json.dumps(params.__dict__).encode("utf-8")
+        json_length = len(json_bytes)
+        json_info = struct.pack("<I%ss" % json_length, json_length, json_bytes)
+
+        return cmd_info + json_info
+
+    def send_ros_service_request(self, srv_id, destination, data):
+        if destination not in self.tcp_server.source_destination_dict.keys():
+            error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
+                destination, self.tcp_server.source_destination_dict.keys()
+            )
+            self.tcp_server.send_unity_error(error_msg)
+            rospy.logerr(error_msg)
+            # TODO: send a response to Unity anyway?
+            return
+        else:
+            ros_communicator = self.tcp_server.source_destination_dict[destination]
+            service_thread = threading.Thread(
+                target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
+            )
+            service_thread.daemon = True
+            service_thread.start()
+
+    def service_call_thread(self, srv_id, destination, data, ros_communicator):
+        response = ros_communicator.send(data)
+
+        if not response:
+            error_msg = "No response data from service '{}'!".format(destination)
+            self.tcp_server.send_unity_error(error_msg)
+            rospy.logerr(error_msg)
+            # TODO: send a response to Unity anyway?
+            return
+
+        self.tcp_server.unity_tcp_sender.send_ros_service_response(srv_id, destination, response)
+
     def run(self):
         """
         Read a message and determine where to send it based on the source_destination_dict
@@ -167,50 +208,23 @@ class ClientThread(threading.Thread):
             while not halt_event.is_set():
                 destination, data = self.read_message(self.conn)
 
-                if destination == "":
+                if self.tcp_server.pending_srv_id is not None:
+                    # if we've been told that the next message will be a service request/response, process it as such
+                    if self.tcp_server.pending_srv_is_request:
+                        self.send_ros_service_request(
+                            self.tcp_server.pending_srv_id, destination, data
+                        )
+                    else:
+                        self.tcp_server.send_unity_service_response(
+                            self.tcp_server.pending_srv_id, data
+                        )
+                    self.tcp_server.pending_srv_id = None
+                elif destination == "":
                     # ignore this keepalive message, listen for more
                     pass
-                elif destination == "__syscommand":
+                elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
-                    self.tcp_server.handle_syscommand(data)
-                elif destination == "__srv":
-                    # handle a ros service message request, or a unity service message response
-                    srv_message = RosUnitySrvMessage().deserialize(data)
-                    if not srv_message.is_request:
-                        self.tcp_server.send_unity_service_response(
-                            srv_message.srv_id, srv_message.payload
-                        )
-                        continue
-                    elif srv_message.topic == "__topic_list":
-                        response = self.tcp_server.topic_list(data)
-                    elif srv_message.topic not in self.tcp_server.source_destination_dict.keys():
-                        error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
-                            srv_message.topic, self.tcp_server.source_destination_dict.keys()
-                        )
-                        self.tcp_server.send_unity_error(error_msg)
-                        rospy.logerr(error_msg)
-                        # TODO: send a response to Unity anyway?
-                        continue
-                    else:
-                        ros_communicator = self.tcp_server.source_destination_dict[
-                            srv_message.topic
-                        ]
-                        response = ros_communicator.send(srv_message.payload)
-                        if not response:
-                            error_msg = "No response data from service '{}'!".format(
-                                srv_message.topic
-                            )
-                            self.tcp_server.send_unity_error(error_msg)
-                            rospy.logerr(error_msg)
-                            # TODO: send a response to Unity anyway?
-                            continue
-
-                    serial_response = BytesIO()
-                    response.serialize(serial_response)
-                    response_message = RosUnitySrvMessage(
-                        srv_message.srv_id, False, "", serial_response.getvalue()
-                    )
-                    self.tcp_server.unity_tcp_sender.send_unity_message("__srv", response_message)
+                    self.tcp_server.handle_syscommand(destination, data)
                 elif destination in self.tcp_server.source_destination_dict:
                     ros_communicator = self.tcp_server.source_destination_dict[destination]
                     response = ros_communicator.send(data)
