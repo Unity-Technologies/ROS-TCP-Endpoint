@@ -141,7 +141,7 @@ class SysCommands:
             topic, message_class, self.tcp_server
         )
 
-    def publish(self, topic, message_name, queue_size = 10, latch = False):
+    def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
             self.tcp_server.send_unity_error(
                 "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
