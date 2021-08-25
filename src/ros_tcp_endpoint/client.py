@@ -97,16 +97,7 @@ class ClientThread(threading.Thread):
         destination = ClientThread.read_string(conn)
         full_message_size = ClientThread.read_int32(conn)
 
-        while len(data) < full_message_size:
-            # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
-            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = ClientThread.recvall(conn, grab)
-
-            if not packet:
-                rospy.logerr("No packets...")
-                break
-
-            data += packet
+        data = ClientThread.recvall(conn, full_message_size)
 
         if full_message_size > 0 and not data:
             rospy.logerr("No data for a message size of {}, breaking!".format(full_message_size))
