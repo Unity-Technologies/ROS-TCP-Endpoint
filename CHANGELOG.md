@@ -38,6 +38,8 @@ Add linter, unit tests, and test coverage reporting
 
 ### Changed
 
+Improving the performance of the read_message in client.py, This is done by receiving the entire message all at once instead of reading 1024 byte chunks and stitching them together as you go.
+
 ### Deprecated
 
 ### Removed
