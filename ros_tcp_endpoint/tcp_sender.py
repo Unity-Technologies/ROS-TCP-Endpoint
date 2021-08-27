@@ -185,6 +185,7 @@ class UnityTcpSender:
 
     def parse_message_name(self, name):
         try:
+            # Example input string: <class 'std_msgs.msg._string.Metaclass_String'>
             names = (str(type(name))).split(".")
             module_name = names[0][8:]
             class_name = names[-1].split("_")[-1][:-2]
