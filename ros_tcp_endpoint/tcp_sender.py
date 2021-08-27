@@ -125,7 +125,22 @@ class UnityTcpSender:
             topic_list = SysCommand_TopicsResponse()
             topics_and_types = self.tcp_server.get_topic_names_and_types()
             topic_list.topics = [item[0] for item in topics_and_types]
-            topic_list.types = [item[1][0].replace("/msg/", "/") for item in topics_and_types]
+            for i in topics_and_types:
+                if len(i[1]) > 1 and i[0] in self.tcp_server.source_destination_dict:
+                    self.tcp_server.get_logger().warning(
+                        "Only one message type per topic is supported, but found multiple types for topic {}; maintaining {} as the subscribed type.".format(
+                            i[0],
+                            self.parse_message_name(
+                                self.tcp_server.source_destination_dict[i[0]].msg
+                            ),
+                        )
+                    )
+            topic_list.types = [
+                item[1][0].replace("/msg/", "/")
+                if (len(item[1]) <= 1)
+                else self.parse_message_name(self.tcp_server.source_destination_dict[item[0]].msg)
+                for item in topics_and_types
+            ]
             serialized_bytes = ClientThread.serialize_command("__topic_list", topic_list)
             self.queue.put(serialized_bytes)
 
@@ -167,6 +182,16 @@ class UnityTcpSender:
             with self.queue_lock:
                 if self.queue is local_queue:
                     self.queue = None
+
+    def parse_message_name(self, name):
+        try:
+            names = (str(type(name))).split(".")
+            module_name = names[0][8:]
+            class_name = names[-1].split("_")[-1][:-2]
+            return "{}/{}".format(module_name, class_name)
+        except (IndexError, AttributeError, ImportError) as e:
+            self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
+            return None
 
 
 class SysCommand_Log:
