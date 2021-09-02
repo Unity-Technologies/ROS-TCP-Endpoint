@@ -141,7 +141,7 @@ class SysCommands:
             topic, message_class, self.tcp_server
         )
 
-    def publish(self, topic, message_name):
+    def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
             self.tcp_server.send_unity_error(
                 "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
@@ -163,7 +163,7 @@ class SysCommands:
             self.tcp_server.source_destination_dict[topic].unregister()
 
         self.tcp_server.source_destination_dict[topic] = RosPublisher(
-            topic, message_class, queue_size=10
+            topic, message_class, queue_size, latch
         )
 
     def ros_service(self, topic, message_name):

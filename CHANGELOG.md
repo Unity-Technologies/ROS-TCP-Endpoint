@@ -14,6 +14,8 @@ Add the [Close Stale Issues](https://github.com/marketplace/actions/close-stale-
 
 ### Added
 
+Support for queue_size and latch for publishers. (https://github.com/Unity-Technologies/ROS-TCP-Endpoint/issues/82)
+
 ### Changed
 
 ### Deprecated
