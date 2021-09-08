@@ -93,7 +93,6 @@ class UnityTcpSender:
             return None
 
         thread_pauser = ThreadPauser()
-
         with self.srv_lock:
             srv_id = self.next_srv_id
             self.next_srv_id += 1
