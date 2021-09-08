@@ -58,7 +58,9 @@ class TcpServer(Node):
             self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
 
         if tcp_port:
-            self.get_logger().log("Using ROS_TCP_PORT override from constructor: {}".format(tcp_port))
+            self.get_logger().log(
+                "Using ROS_TCP_PORT override from constructor: {}".format(tcp_port)
+            )
             self.tcp_port = tcp_port
         else:
             self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
@@ -162,14 +164,19 @@ class SysCommands:
         self.tcp_server = tcp_server
 
     def subscribe(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(topic, message_name))
+                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
+            self.tcp_server.send_unity_error(
+                "SysCommand.subscribe - Unknown message class '{}'".format(message_name)
+            )
             return
 
         self.tcp_server.unregister_node(topic)
@@ -179,38 +186,53 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_subscriber)
 
-        self.tcp_server.get_logger().info("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterSubscriber({}, {}) OK".format(topic, message_class)
+        )
 
-    def publish(self, topic, message_name):
-        if topic == '':
+    def publish(self, topic, message_name, queue_size=10, latch=False):
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(topic, message_name))
+                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class '{}'".format(message_name))
+            self.tcp_server.send_unity_error(
+                "SysCommand.publish - Unknown message class '{}'".format(message_name)
+            )
             return
 
         self.tcp_server.unregister_node(topic)
 
-        new_publisher = RosPublisher(topic, message_class, queue_size=10)
+        new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
 
         self.tcp_server.source_destination_dict[topic] = new_publisher
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
 
-        self.tcp_server.get_logger().info("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterPublisher({}, {}) OK".format(topic, message_class)
+        )
 
     def ros_service(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "RegisterRosService({}, {}) - Can't register a blank topic name!".format(topic, message_name))
+                "RegisterRosService({}, {}) - Can't register a blank topic name!".format(
+                    topic, message_name
+                )
+            )
             return
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
             self.tcp_server.send_unity_error(
-                "RegisterRosService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+                "RegisterRosService({}, {}) - Unknown service class '{}'".format(
+                    topic, message_name, message_name
+                )
+            )
             return
 
         self.tcp_server.unregister_node(topic)
@@ -221,18 +243,26 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
-        self.tcp_server.get_logger().info("RegisterRosService({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterRosService({}, {}) OK".format(topic, message_class)
+        )
 
     def unity_service(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "RegisterUnityService({}, {}) - Can't register a blank topic name!".format(topic, message_name))
+                "RegisterUnityService({}, {}) - Can't register a blank topic name!".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
             self.tcp_server.send_unity_error(
-                "RegisterUnityService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+                "RegisterUnityService({}, {}) - Unknown service class '{}'".format(
+                    topic, message_name, message_name
+                )
+            )
             return
 
         self.tcp_server.unregister_node(topic)
@@ -243,7 +273,9 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
-        self.tcp_server.get_logger().info("RegisterUnityService({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterUnityService({}, {}) OK".format(topic, message_class)
+        )
 
     def response(self, srv_id):  # the next message is a service response
         self.tcp_server.pending_srv_id = srv_id
@@ -258,20 +290,25 @@ class SysCommands:
 
     def resolve_message_name(self, name, extension="msg"):
         try:
-            names = name.split('/')
+            names = name.split("/")
             module_name = names[0]
             class_name = names[1]
             importlib.import_module(module_name + "." + extension)
             module = sys.modules[module_name]
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}".format(module_name))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}".format(module_name)
+                )
             module = getattr(module, extension)
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}.{}".format(module_name, extension))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}.{}".format(module_name, extension)
+                )
             module = getattr(module, class_name)
             if module is None:
                 self.tcp_server.get_logger().error(
-                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
+                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
+                )
             return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
             self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
