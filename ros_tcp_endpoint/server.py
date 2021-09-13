@@ -68,16 +68,21 @@ class TcpServer(Node):
         self.unity_tcp_sender = UnityTcpSender(self)
 
         self.node_name = node_name
-        self.source_destination_dict = {}
+        self.publishers = {}
+        self.subscribers = {}
+        self.ros_services = {}
+        self.unity_services = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
         self.pending_srv_id = None
         self.pending_srv_is_request = False
 
-    def start(self, source_destination_dict=None):
-        if source_destination_dict is not None:
-            self.source_destination_dict = source_destination_dict
+    def start(self, publishers=None, subscribers=None):
+        if publishers is not None:
+            self.publishers = publishers
+        if subscribers is not None:
+            self.subscribers = subscribers
         server_thread = threading.Thread(target=self.listen_loop)
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
@@ -182,7 +187,7 @@ class SysCommands:
         self.tcp_server.unregister_node(topic)
 
         new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
-        self.tcp_server.source_destination_dict[topic] = new_subscriber
+        self.tcp_server.subscribers[topic] = new_subscriber
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_subscriber)
 
@@ -210,7 +215,7 @@ class SysCommands:
 
         new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
 
-        self.tcp_server.source_destination_dict[topic] = new_publisher
+        self.tcp_server.publishers[topic] = new_publisher
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
 
@@ -239,7 +244,7 @@ class SysCommands:
 
         new_service = RosService(topic, message_class)
 
-        self.tcp_server.source_destination_dict[topic] = new_service
+        self.tcp_server.ros_services[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
@@ -269,7 +274,7 @@ class SysCommands:
 
         new_service = UnityService(str(topic), message_class, self.tcp_server)
 
-        self.tcp_server.source_destination_dict[topic] = new_service
+        self.tcp_server.unity_services[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
