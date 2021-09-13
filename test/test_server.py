@@ -154,7 +154,7 @@ def test_subscribe_to_empty_message_should_return_none():
 def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
-    assert server.subscribers != {}
+    assert server.ros_services != {}
     mock_ros_service.assert_called_once
 
 
