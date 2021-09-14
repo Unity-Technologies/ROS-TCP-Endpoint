@@ -68,10 +68,10 @@ class TcpServer(Node):
         self.unity_tcp_sender = UnityTcpSender(self)
 
         self.node_name = node_name
-        self.publishers = {}
-        self.subscribers = {}
-        self.ros_services = {}
-        self.unity_services = {}
+        self.publishers_table = {}
+        self.subscribers_table = {}
+        self.ros_services_table = {}
+        self.unity_services_table = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
@@ -80,9 +80,9 @@ class TcpServer(Node):
 
     def start(self, publishers=None, subscribers=None):
         if publishers is not None:
-            self.publishers = publishers
+            self.publishers_table = publishers
         if subscribers is not None:
-            self.subscribers = subscribers
+            self.subscribers_table = subscribers
         server_thread = threading.Thread(target=self.listen_loop)
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
@@ -136,29 +136,40 @@ class TcpServer(Node):
             MultiThreadedExecutor allows us to set the number of threads
             needed as well as the nodes that need to be spun.
         """
-        num_threads = len(self.source_destination_dict.keys()) + 1
+        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
         executor = MultiThreadedExecutor(num_threads)
 
         executor.add_node(self)
 
-        for ros_node in self.source_destination_dict.values():
+        for ros_node in self.publishers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.subscribers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.ros_services_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.unity_services_table.values():
             executor.add_node(ros_node)
 
         self.executor = executor
         executor.spin()
 
-    def unregister_node(self, topic):
-        if topic in self.source_destination_dict:
-            old_node = self.source_destination_dict[topic]
+    def unregister_node(self, old_node):
+        if old_node is not None:
             old_node.unregister()
             if self.executor is not None:
                 self.executor.remove_node(old_node)
 
     def destroy_nodes(self):
         """
-            Clean up all of the nodes in source_destination_dict
+            Clean up all of the nodes
         """
-        for ros_node in self.source_destination_dict.values():
+        for ros_node in self.publishers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.subscribers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.ros_services_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.unity_services_table.values():
             ros_node.destroy_node()
 
         self.destroy_node()
@@ -184,10 +195,12 @@ class SysCommands:
             )
             return
 
-        self.tcp_server.unregister_node(topic)
+        old_node = self.tcp_server.subscribers_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
-        self.tcp_server.subscribers[topic] = new_subscriber
+        self.tcp_server.subscribers_table[topic] = new_subscriber
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_subscriber)
 
@@ -211,11 +224,13 @@ class SysCommands:
             )
             return
 
-        self.tcp_server.unregister_node(topic)
+        old_node = self.tcp_server.publishers_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
 
-        self.tcp_server.publishers[topic] = new_publisher
+        self.tcp_server.publishers_table[topic] = new_publisher
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
 
@@ -240,11 +255,13 @@ class SysCommands:
             )
             return
 
-        self.tcp_server.unregister_node(topic)
+        old_node = self.tcp_server.ros_services_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_service = RosService(topic, message_class)
 
-        self.tcp_server.ros_services[topic] = new_service
+        self.tcp_server.ros_services_table[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
@@ -270,11 +287,13 @@ class SysCommands:
             )
             return
 
-        self.tcp_server.unregister_node(topic)
+        old_node = self.tcp_server.unity_services_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_service = UnityService(str(topic), message_class, self.tcp_server)
 
-        self.tcp_server.unity_services[topic] = new_service
+        self.tcp_server.unity_services_table[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
