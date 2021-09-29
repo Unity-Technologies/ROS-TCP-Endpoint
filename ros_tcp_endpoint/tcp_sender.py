@@ -93,7 +93,6 @@ class UnityTcpSender:
             return None
 
         thread_pauser = ThreadPauser()
-
         with self.srv_lock:
             srv_id = self.next_srv_id
             self.next_srv_id += 1
@@ -120,12 +119,39 @@ class UnityTcpSender:
 
         thread_pauser.resume_with_result(data)
 
+    def get_registered_topic(self, topic):
+        if topic in self.tcp_server.publishers_table:
+            return self.tcp_server.publishers_table[topic]
+        elif topic in self.tcp_server.subscribers_table:
+            return self.tcp_server.subscribers_table[topic]
+        elif topic in self.tcp_server.ros_services_table:
+            return self.tcp_server.ros_services_table[topic]
+        elif topic in self.tcp_server.unity_services_table:
+            return self.tcp_server.unity_services_table[topic]
+        else:
+            return None
+
     def send_topic_list(self):
         if self.queue is not None:
             topic_list = SysCommand_TopicsResponse()
             topics_and_types = self.tcp_server.get_topic_names_and_types()
             topic_list.topics = [item[0] for item in topics_and_types]
-            topic_list.types = [item[1] for item in topics_and_types]
+            for i in topics_and_types:
+                node = self.get_registered_topic(i[0])
+                if (len(i[1]) > 1):
+                    if (node is not None):
+                        self.tcp_server.get_logger().warning(
+                            "Only one message type per topic is supported, but found multiple types for topic {}; maintaining {} as the subscribed type.".format(
+                                i[0],
+                                self.parse_message_name(node.msg),
+                            )
+                        )
+                topic_list.types = [
+                    item[1][0].replace("/msg/", "/")
+                    if (len(item[1]) <= 1)
+                    else self.parse_message_name(node.msg)
+                    for item in topics_and_types
+                ]
             serialized_bytes = ClientThread.serialize_command("__topic_list", topic_list)
             self.queue.put(serialized_bytes)
 
@@ -167,6 +193,17 @@ class UnityTcpSender:
             with self.queue_lock:
                 if self.queue is local_queue:
                     self.queue = None
+
+    def parse_message_name(self, name):
+        try:
+            # Example input string: <class 'std_msgs.msg._string.Metaclass_String'>
+            names = (str(type(name))).split(".")
+            module_name = names[0][8:]
+            class_name = names[-1].split("_")[-1][:-2]
+            return "{}/{}".format(module_name, class_name)
+        except (IndexError, AttributeError, ImportError) as e:
+            self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
+            return None
 
 
 class SysCommand_Log:
