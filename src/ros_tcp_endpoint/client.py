@@ -151,16 +151,16 @@ class ClientThread(threading.Thread):
         return cmd_info + json_info
 
     def send_ros_service_request(self, srv_id, destination, data):
-        if destination not in self.tcp_server.ros_services.keys():
+        if destination not in self.tcp_server.ros_services_table.keys():
             error_msg = "Service destination '{}' is not registered! Known services are: {} ".format(
-                destination, self.tcp_server.ros_services.keys()
+                destination, self.tcp_server.ros_services_table.keys()
             )
             self.tcp_server.send_unity_error(error_msg)
             rospy.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
         else:
-            ros_communicator = self.tcp_server.ros_services[destination]
+            ros_communicator = self.tcp_server.ros_services_table[destination]
             service_thread = threading.Thread(
                 target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
             )
@@ -219,8 +219,8 @@ class ClientThread(threading.Thread):
                 elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
-                elif destination in self.tcp_server.publishers:
-                    ros_communicator = self.tcp_server.publishers[destination]
+                elif destination in self.tcp_server.publishers_table:
+                    ros_communicator = self.tcp_server.publishers_table[destination]
                     ros_communicator.send(data)
                 else:
                     error_msg = "Not registered to publish topic '{}'! Valid publish topics are: {} ".format(
