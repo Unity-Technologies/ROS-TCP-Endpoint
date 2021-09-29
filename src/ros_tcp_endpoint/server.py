@@ -55,16 +55,21 @@ class TcpServer:
         self.unity_tcp_sender = UnityTcpSender()
 
         self.node_name = node_name
-        self.source_destination_dict = {}
+        self.publishers = {}
+        self.subscribers = {}
+        self.ros_services = {}
+        self.unity_services = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
         self.pending_srv_id = None
         self.pending_srv_is_request = False
 
-    def start(self, source_destination_dict=None):
-        if source_destination_dict is not None:
-            self.source_destination_dict = source_destination_dict
+    def start(self, publishers=None, subscribers=None):
+        if publishers is not None:
+            self.publishers = publishers
+        if subscribers is not None:
+            self.subscribers = subscribers
         server_thread = threading.Thread(target=self.listen_loop)
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
@@ -134,12 +139,10 @@ class SysCommands:
 
         rospy.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
 
-        if topic in self.tcp_server.source_destination_dict:
-            self.tcp_server.source_destination_dict[topic].unregister()
+        if topic in self.tcp_server.subscribers:
+            self.tcp_server.subscribers[topic].unregister()
 
-        self.tcp_server.source_destination_dict[topic] = RosSubscriber(
-            topic, message_class, self.tcp_server
-        )
+        self.tcp_server.subscribers[topic] = RosSubscriber(topic, message_class, self.tcp_server)
 
     def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
@@ -159,12 +162,10 @@ class SysCommands:
 
         rospy.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
 
-        if topic in self.tcp_server.source_destination_dict:
-            self.tcp_server.source_destination_dict[topic].unregister()
+        if topic in self.tcp_server.publishers:
+            self.tcp_server.publishers[topic].unregister()
 
-        self.tcp_server.source_destination_dict[topic] = RosPublisher(
-            topic, message_class, queue_size, latch
-        )
+        self.tcp_server.publishers[topic] = RosPublisher(topic, message_class, queue_size, latch)
 
     def ros_service(self, topic, message_name):
         if topic == "":
@@ -186,10 +187,10 @@ class SysCommands:
 
         rospy.loginfo("RegisterRosService({}, {}) OK".format(topic, message_class))
 
-        if topic in self.tcp_server.source_destination_dict:
-            self.tcp_server.source_destination_dict[topic].unregister()
+        if topic in self.tcp_server.ros_services:
+            self.tcp_server.ros_services[topic].unregister()
 
-        self.tcp_server.source_destination_dict[topic] = RosService(topic, message_class)
+        self.tcp_server.ros_services[topic] = RosService(topic, message_class)
 
     def unity_service(self, topic, message_name):
         if topic == "":
@@ -211,12 +212,10 @@ class SysCommands:
 
         rospy.loginfo("RegisterUnityService({}, {}) OK".format(topic, message_class))
 
-        if topic in self.tcp_server.source_destination_dict:
-            self.tcp_server.source_destination_dict[topic].unregister()
+        if topic in self.tcp_server.unity_services:
+            self.tcp_server.unity_services[topic].unregister()
 
-        self.tcp_server.source_destination_dict[topic] = UnityService(
-            topic, message_class, self.tcp_server
-        )
+        self.tcp_server.unity_services[topic] = UnityService(topic, message_class, self.tcp_server)
 
     def response(self, srv_id):  # the next message is a service response
         self.tcp_server.pending_srv_id = srv_id
