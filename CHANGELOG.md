@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [0.6.0] - 2021-09-30
 
+Add the [Close Stale Issues](https://github.com/marketplace/actions/close-stale-issues) action
+
 ### Upgrade Notes
 
 ### Known Issues
@@ -29,7 +31,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Added
 
 Support for queue_size and latch for publishers. (https://github.com/Unity-Technologies/ROS-TCP-Endpoint/issues/82)
-Added the [Close Stale Issues](https://github.com/marketplace/actions/close-stale-issues) action
 
 ### Changed
 
