@@ -37,7 +37,7 @@ class TcpServer(Node):
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip="", tcp_port=-1, timeout=10):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip=None, tcp_port=None):
         """
         Initializes ROS node and class variables.
 
@@ -48,15 +48,19 @@ class TcpServer(Node):
         """
         super().__init__(node_name)
 
-        self.declare_parameter("ROS_IP", "127.0.0.1")
+        self.declare_parameter("ROS_IP", "0.0.0.0")
         self.declare_parameter("ROS_TCP_PORT", 10000)
 
-        if tcp_ip != "":
+        if tcp_ip:
+            self.get_logger().log("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
             self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
-            
-        if tcp_port != -1:
+
+        if tcp_port:
+            self.get_logger().log(
+                "Using ROS_TCP_PORT override from constructor: {}".format(tcp_port)
+            )
             self.tcp_port = tcp_port
         else:
             self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
@@ -64,21 +68,26 @@ class TcpServer(Node):
         self.unity_tcp_sender = UnityTcpSender(self)
 
         self.node_name = node_name
-        self.source_destination_dict = {}
+        self.publishers_table = {}
+        self.subscribers_table = {}
+        self.ros_services_table = {}
+        self.unity_services_table = {}
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
         self.pending_srv_id = None
         self.pending_srv_is_request = False
-        
-    def start(self, source_destination_dict=None):
-        if source_destination_dict is not None:
-            self.source_destination_dict = source_destination_dict
+
+    def start(self, publishers=None, subscribers=None):
+        if publishers is not None:
+            self.publishers_table = publishers
+        if subscribers is not None:
+            self.subscribers_table = subscribers
         server_thread = threading.Thread(target=self.listen_loop)
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
         server_thread.start()
-        
+
     def listen_loop(self):
         """
             Creates and binds sockets using TCP variables then listens for incoming connections.
@@ -91,7 +100,7 @@ class TcpServer(Node):
 
         while True:
             tcp_server.listen(self.connections)
-            
+
             try:
                 (conn, (ip, port)) = tcp_server.accept()
                 ClientThread(conn, self, ip, port).start()
@@ -119,7 +128,6 @@ class TcpServer(Node):
             params = json.loads(message_json)
             function(**params)
 
-
     def setup_executor(self):
         """
             Since rclpy.spin() is a blocking call the server needed a way
@@ -128,125 +136,177 @@ class TcpServer(Node):
             MultiThreadedExecutor allows us to set the number of threads
             needed as well as the nodes that need to be spun.
         """
-        num_threads = len(self.source_destination_dict.keys()) + 1
+        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
         executor = MultiThreadedExecutor(num_threads)
 
         executor.add_node(self)
 
-        for ros_node in self.source_destination_dict.values():
+        for ros_node in self.publishers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.subscribers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.ros_services_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.unity_services_table.values():
             executor.add_node(ros_node)
 
         self.executor = executor
         executor.spin()
 
-    def unregister_node(self, topic):
-        if topic in self.source_destination_dict:
-            old_node = self.source_destination_dict[topic]
+    def unregister_node(self, old_node):
+        if old_node is not None:
             old_node.unregister()
             if self.executor is not None:
                 self.executor.remove_node(old_node)
 
     def destroy_nodes(self):
         """
-            Clean up all of the nodes in source_destination_dict
+            Clean up all of the nodes
         """
-        for ros_node in self.source_destination_dict.values():
+        for ros_node in self.publishers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.subscribers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.ros_services_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.unity_services_table.values():
             ros_node.destroy_node()
 
         self.destroy_node()
+
 
 class SysCommands:
     def __init__(self, tcp_server):
         self.tcp_server = tcp_server
 
     def subscribe(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(topic, message_name))
+                "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.subscribe - Unknown message class '{}'".format(message_name))
+            self.tcp_server.send_unity_error(
+                "SysCommand.subscribe - Unknown message class '{}'".format(message_name)
+            )
             return
-        
-        self.tcp_server.unregister_node(topic)
+
+        old_node = self.tcp_server.subscribers_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
-        self.tcp_server.source_destination_dict[topic] = new_subscriber
+        self.tcp_server.subscribers_table[topic] = new_subscriber
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_subscriber)
 
-        self.tcp_server.get_logger().info("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterSubscriber({}, {}) OK".format(topic, message_class)
+        )
 
-    def publish(self, topic, message_name):
-        if topic == '':
+    def publish(self, topic, message_name, queue_size=10, latch=False):
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(topic, message_name))
+                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
-            self.tcp_server.send_unity_error("SysCommand.publish - Unknown message class '{}'".format(message_name))
+            self.tcp_server.send_unity_error(
+                "SysCommand.publish - Unknown message class '{}'".format(message_name)
+            )
             return
 
-        self.tcp_server.unregister_node(topic)
-                
-        new_publisher = RosPublisher(topic, message_class, queue_size=10)
-        
-        self.tcp_server.source_destination_dict[topic] = new_publisher
+        old_node = self.tcp_server.publishers_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
+
+        new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
+
+        self.tcp_server.publishers_table[topic] = new_publisher
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
 
-        self.tcp_server.get_logger().info("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        self.tcp_server.get_logger().info(
+            "RegisterPublisher({}, {}) OK".format(topic, message_class)
+        )
 
     def ros_service(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "RegisterRosService({}, {}) - Can't register a blank topic name!".format(topic, message_name))
+                "RegisterRosService({}, {}) - Can't register a blank topic name!".format(
+                    topic, message_name
+                )
+            )
             return
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
-            self.tcp_server.send_unity_error("RegisterRosService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+            self.tcp_server.send_unity_error(
+                "RegisterRosService({}, {}) - Unknown service class '{}'".format(
+                    topic, message_name, message_name
+                )
+            )
             return
 
-        self.tcp_server.unregister_node(topic)
-        
+        old_node = self.tcp_server.ros_services_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
+
         new_service = RosService(topic, message_class)
 
-        self.tcp_server.source_destination_dict[topic] = new_service
+        self.tcp_server.ros_services_table[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
-        self.tcp_server.get_logger().info("RegisterRosService({}, {}) OK".format(topic, message_class))
-        
+        self.tcp_server.get_logger().info(
+            "RegisterRosService({}, {}) OK".format(topic, message_class)
+        )
+
     def unity_service(self, topic, message_name):
-        if topic == '':
+        if topic == "":
             self.tcp_server.send_unity_error(
-                "RegisterUnityService({}, {}) - Can't register a blank topic name!".format(topic, message_name))
+                "RegisterUnityService({}, {}) - Can't register a blank topic name!".format(
+                    topic, message_name
+                )
+            )
             return
 
         message_class = self.resolve_message_name(message_name, "srv")
         if message_class is None:
-            self.tcp_server.send_unity_error("RegisterUnityService({}, {}) - Unknown service class '{}'".format(topic, message_name, message_name))
+            self.tcp_server.send_unity_error(
+                "RegisterUnityService({}, {}) - Unknown service class '{}'".format(
+                    topic, message_name, message_name
+                )
+            )
             return
 
-        self.tcp_server.unregister_node(topic)
+        old_node = self.tcp_server.unity_services_table.get(topic)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
 
         new_service = UnityService(str(topic), message_class, self.tcp_server)
 
-        self.tcp_server.source_destination_dict[topic] = new_service
+        self.tcp_server.unity_services_table[topic] = new_service
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
-        
-        self.tcp_server.get_logger().info("RegisterUnityService({}, {}) OK".format(topic, message_class))
 
-    def response(self, srv_id): # the next message is a service response
-        self.tcp_server.pending_srv_id = srv_id 
+        self.tcp_server.get_logger().info(
+            "RegisterUnityService({}, {}) OK".format(topic, message_class)
+        )
+
+    def response(self, srv_id):  # the next message is a service response
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = False
 
-    def request(self, srv_id): # the next message is a service request
-        self.tcp_server.pending_srv_id = srv_id 
+    def request(self, srv_id):  # the next message is a service request
+        self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = True
 
     def topic_list(self):
@@ -254,19 +314,25 @@ class SysCommands:
 
     def resolve_message_name(self, name, extension="msg"):
         try:
-            names = name.split('/')
+            names = name.split("/")
             module_name = names[0]
             class_name = names[1]
-            importlib.import_module(module_name+ "." + extension)
+            importlib.import_module(module_name + "." + extension)
             module = sys.modules[module_name]
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}".format(module_name))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}".format(module_name)
+                )
             module = getattr(module, extension)
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}.{}".format(module_name, extension))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}.{}".format(module_name, extension)
+                )
             module = getattr(module, class_name)
             if module is None:
-                self.tcp_server.get_logger().error("Failed to resolve module {}.{}.{}".format(module_name, extension, class_name))
+                self.tcp_server.get_logger().error(
+                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
+                )
             return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
             self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
