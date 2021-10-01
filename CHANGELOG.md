@@ -20,6 +20,26 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Fixed
 
+## [0.6.0] - 2021-09-30
+
+Add the [Close Stale Issues](https://github.com/marketplace/actions/close-stale-issues) action
+
+### Upgrade Notes
+
+### Known Issues
+
+### Added
+
+Support for queue_size and latch for publishers. (https://github.com/Unity-Technologies/ROS-TCP-Endpoint/issues/82)
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
 ## [0.5.0] - 2021-07-15
 
 ### Upgrade Notes
@@ -55,6 +75,8 @@ Add a link to the Robotics forum, and add a config.yml to add a link in the Gith
 Add linter, unit tests, and test coverage reporting
 
 ### Changed
+
+Improving the performance of the read_message in client.py, This is done by receiving the entire message all at once instead of reading 1024 byte chunks and stitching them together as you go.
 
 ### Deprecated
 

@@ -34,7 +34,9 @@ class ClientThread(threading.Thread):
         Set class variables
         Args:
             conn:
-            source_destination_dict: dictionary of destination name to RosCommunicator class
+            tcp_server: server object
+            incoming_ip: connected from this IP address
+            incoming_port: connected from this port
         """
         self.conn = conn
         self.tcp_server = tcp_server
@@ -97,16 +99,7 @@ class ClientThread(threading.Thread):
         destination = ClientThread.read_string(conn)
         full_message_size = ClientThread.read_int32(conn)
 
-        while len(data) < full_message_size:
-            # Only grabs max of 1024 bytes TODO: change to TCPServer's buffer_size
-            grab = 1024 if full_message_size - len(data) > 1024 else full_message_size - len(data)
-            packet = ClientThread.recvall(conn, grab)
-
-            if not packet:
-                rospy.logerr("No packets...")
-                break
-
-            data += packet
+        data = ClientThread.recvall(conn, full_message_size)
 
         if full_message_size > 0 and not data:
             rospy.logerr("No data for a message size of {}, breaking!".format(full_message_size))
@@ -158,16 +151,16 @@ class ClientThread(threading.Thread):
         return cmd_info + json_info
 
     def send_ros_service_request(self, srv_id, destination, data):
-        if destination not in self.tcp_server.source_destination_dict.keys():
-            error_msg = "Service destination '{}' is not registered! Known topics are: {} ".format(
-                destination, self.tcp_server.source_destination_dict.keys()
+        if destination not in self.tcp_server.ros_services.keys():
+            error_msg = "Service destination '{}' is not registered! Known services are: {} ".format(
+                destination, self.tcp_server.ros_services.keys()
             )
             self.tcp_server.send_unity_error(error_msg)
             rospy.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
         else:
-            ros_communicator = self.tcp_server.source_destination_dict[destination]
+            ros_communicator = self.tcp_server.ros_services[destination]
             service_thread = threading.Thread(
                 target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
             )
@@ -188,8 +181,8 @@ class ClientThread(threading.Thread):
 
     def run(self):
         """
-        Read a message and determine where to send it based on the source_destination_dict
-         and destination string. Then send the read message.
+        Receive a message from Unity and determine where to send it based on the publishers table
+         and topic string. Then send the read message.
 
         If there is a response after sending the serialized data, assume it is a
         ROS service response.
@@ -208,6 +201,7 @@ class ClientThread(threading.Thread):
             while not halt_event.is_set():
                 destination, data = self.read_message(self.conn)
 
+                # Process this message that was sent from Unity
                 if self.tcp_server.pending_srv_id is not None:
                     # if we've been told that the next message will be a service request/response, process it as such
                     if self.tcp_server.pending_srv_is_request:
@@ -225,12 +219,12 @@ class ClientThread(threading.Thread):
                 elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
-                elif destination in self.tcp_server.source_destination_dict:
-                    ros_communicator = self.tcp_server.source_destination_dict[destination]
-                    response = ros_communicator.send(data)
+                elif destination in self.tcp_server.publishers:
+                    ros_communicator = self.tcp_server.publishers[destination]
+                    ros_communicator.send(data)
                 else:
-                    error_msg = "Topic '{}' is not registered! Known topics are: {} ".format(
-                        destination, self.tcp_server.source_destination_dict.keys()
+                    error_msg = "Not registered to publish topic '{}'! Valid publish topics are: {} ".format(
+                        destination, self.tcp_server.publishers.keys()
                     )
                     self.tcp_server.send_unity_error(error_msg)
                     rospy.logerr(error_msg)
