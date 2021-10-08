@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ "$1" == "remove" ]; then ## Execute only when apt remove executed, not with purge(it includes remove) or upgrade
+
+    # ## Detect ROS version or if both ROS1 and ROS2 are installed and get the ros path <ros_path>.
+    base_path="/opt/ros"
+    package_name="ros_tcp_endpoint"
+    ros_path="$(find "$base_path" -maxdepth 1 -mindepth 1 -type d | tr " " "\n")"
+
+    n_distros="$(wc -l <<<"$ros_path")"
+
+    if [ "$n_distros" -gt "1" ]; then
+        echo "Multiple ros distros founds"
+        valid="0"
+        while [ "$valid" == "0" ]; do
+            echo -e "$(ls /opt/ros)\n"
+            echo "Please Insert ROS 1 distro name from the above list to perform installation: "
+            read -r ros_distro
+            for distro in /opt/ros/*; do if [ "$(basename "$distro")" == "$ros_distro" ]; then
+                valid="1"
+                ros_path="$distro"
+            fi; done
+        done
+        echo "Package $package_name will be removed from the ros $ros_distro distro in $ros_path"
+    fi
+
+    echo "Removing virtual enviroment files..."
+    sudo rm -rf "$ros_path"/share/"$package_name"
+    echo "Virtual enviroment removed"
+
+fi

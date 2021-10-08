@@ -1,0 +1,33 @@
+#!/bin/bash
+# shellcheck source=/dev/null
+# ## Detect ROS version or if both ROS1 and ROS2 are installed and get the ros path <ros_path>. 
+base_path="/opt/ros"
+package_name="ros_tcp_endpoint"
+ros_path="$(find "$base_path" -maxdepth 1 -mindepth 1 -type d | tr " " "\n" )"
+venv_name="venv_tcp_endpoint"
+
+n_distros="$(wc -l <<< "$ros_path")"
+
+if [ "$n_distros" -gt "1" ]; then
+    echo "Multiple ros distros founds"
+    valid="0"
+    while [ "$valid" == "0" ]
+    do
+        echo -e "$(ls /opt/ros)\n"
+        echo "Please Insert ROS 1 distro name from the above list to perform installation: "
+        read -r ros_distro
+        for distro in /opt/ros/*; do if [ "$(basename "$distro")" == "$ros_distro" ]; then valid="1"; ros_path="$distro"; fi; done
+    done
+    echo "Package $package_name will be installed on the ros $ros_distro distro in $ros_path"
+fi
+
+cd "$ros_path"/share/"$package_name" || { echo "Error looking for package installation dir in postinstallation"; exit 1; }
+
+echo "Setting up python virtual environment... "
+python3 -m venv "$venv_name" > /dev/null
+sudo chown -R "$(whoami)" "$venv_name"
+source "$venv_name"/bin/activate
+pip3 install --upgrade pip &> /dev/null
+pip3 install wheel &> /dev/null
+pip3 install -r requirements.txt --no-cache-dir &> /dev/null
+deactivate

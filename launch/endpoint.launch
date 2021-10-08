@@ -1,4 +1,13 @@
 <launch>
+
+    <arg name="enable_py_venv" default="false"/>
+
     <rosparam file="$(find ros_tcp_endpoint)/config/params.yaml" command="load"/>
-    <node name="server_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint.py" args="--wait" output="screen" respawn="true" />
+
+    <node name="server_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint_venv.py" 
+    args="--venv $(find ros_tcp_endpoint)/venv_tcp_endpoint --wait" output="screen" respawn="true" if="$(arg enable_py_venv)"/>
+
+    <node name="server_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint.py" 
+    args="--wait" output="screen" respawn="true" unless="$(arg enable_py_venv)"/>
+
 </launch>
