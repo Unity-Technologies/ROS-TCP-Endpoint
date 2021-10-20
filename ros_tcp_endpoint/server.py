@@ -12,13 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import rospy
+import rclpy
 import socket
-import logging
 import json
 import sys
 import threading
 import importlib
+
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.serialization import deserialize_message
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -28,7 +32,7 @@ from .service import RosService
 from .unity_service import UnityService
 
 
-class TcpServer:
+class TcpServer(Node):
     """
     Initializes ROS node and TCP server.
     """
@@ -42,17 +46,22 @@ class TcpServer:
             buffer_size:             The read buffer size used when reading from a socket
             connections:             Max number of queued connections. See Python Socket documentation
         """
+        super().__init__(node_name)
+
+        self.declare_parameter("ROS_IP", "0.0.0.0")
+        self.declare_parameter("ROS_TCP_PORT", 10000)
+        
         if tcp_ip:
             self.loginfo("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
-            self.tcp_ip = rospy.get_param("/ROS_IP")
+            self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
 
         if tcp_port:
             self.loginfo("Using ROS_TCP_PORT override from constructor: {}".format(tcp_port))
             self.tcp_port = tcp_port
         else:
-            self.tcp_port = rospy.get_param("/ROS_TCP_PORT", 10000)
+            self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
 
         self.unity_tcp_sender = UnityTcpSender(self)
 
@@ -118,17 +127,59 @@ class TcpServer:
             function(**params)
 
     def loginfo(self, text):
-        rospy.loginfo(text)
+        self.get_logger().info(text)
 
     def logwarn(self, text):
-        rospy.logwarn(text)
+        self.get_logger().warning(text)
 
     def logerr(self, text):
-        rospy.logerr(text)
+        self.get_logger().error(text)
+        
+    def setup_executor(self):
+        """
+            Since rclpy.spin() is a blocking call the server needed a way
+            to spin all of the relevant nodes at the same time.
 
-    def unregister_node(old_node):
+            MultiThreadedExecutor allows us to set the number of threads
+            needed as well as the nodes that need to be spun.
+        """
+        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
+        executor = MultiThreadedExecutor(num_threads)
+
+        executor.add_node(self)
+
+        for ros_node in self.publishers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.subscribers_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.ros_services_table.values():
+            executor.add_node(ros_node)
+        for ros_node in self.unity_services_table.values():
+            executor.add_node(ros_node)
+
+        self.executor = executor
+        executor.spin()
+
+    def unregister_node(self, old_node):
         if old_node is not None:
             old_node.unregister()
+            if self.executor is not None:
+                self.executor.remove_node(old_node)
+
+    def destroy_nodes(self):
+        """
+            Clean up all of the nodes
+        """
+        for ros_node in self.publishers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.subscribers_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.ros_services_table.values():
+            ros_node.destroy_node()
+        for ros_node in self.unity_services_table.values():
+            ros_node.destroy_node()
+
+        self.destroy_node()
 
 
 class SysCommands:
@@ -157,6 +208,8 @@ class SysCommands:
 
         new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
         self.tcp_server.subscribers_table[topic] = new_subscriber
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_subscriber)
 
         self.tcp_server.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
 
@@ -183,6 +236,8 @@ class SysCommands:
         new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
 
         self.tcp_server.publishers_table[topic] = new_publisher
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_publisher)
 
         self.tcp_server.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
 
@@ -210,6 +265,8 @@ class SysCommands:
         new_service = RosService(topic, message_class)
 
         self.tcp_server.ros_services_table[topic] = new_service
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_service)
 
         self.tcp_server.loginfo("RegisterRosService({}, {}) OK".format(topic, message_class))
 
@@ -238,6 +295,8 @@ class SysCommands:
         new_service = UnityService(str(topic), message_class, self.tcp_server)
 
         self.tcp_server.unity_services_table[topic] = new_service
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_service)
 
         self.tcp_server.loginfo("RegisterUnityService({}, {}) OK".format(topic, message_class))
 

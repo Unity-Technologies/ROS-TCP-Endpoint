@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 
-import rospy
+import rclpy
 
 from ros_tcp_endpoint import TcpServer
 
 
 def main(args=None):
+    rclpy.init(args=args)
     tcp_server = TcpServer("UnityEndpoint")
 
-    # Start the Server Endpoint
-    rospy.init_node(ros_node_name, anonymous=True)
     tcp_server.start()
-    rospy.spin()
+
+    tcp_server.setup_executor()
+
+    tcp_server.destroy_nodes()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -12,13 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import rclpy
 import struct
-import socket
-import rospy
-from io import BytesIO
 
 import threading
 import json
+
+from rclpy.serialization import deserialize_message
+from rclpy.serialization import serialize_message
 
 from .exceptions import TopicOrServiceNameDoesNotExistError
 
@@ -100,9 +101,7 @@ class ClientThread(threading.Thread):
         data = ClientThread.recvall(conn, full_message_size)
 
         if full_message_size > 0 and not data:
-            self.tcp_server.logerr(
-                "No data for a message size of {}, breaking!".format(full_message_size)
-            )
+            self.logerr("No data for a message size of {}, breaking!".format(full_message_size))
             return
 
         destination = destination.rstrip("\x00")
@@ -124,15 +123,7 @@ class ClientThread(threading.Thread):
         length = len(dest_bytes)
         dest_info = struct.pack("<I%ss" % length, length, dest_bytes)
 
-        serial_response = BytesIO()
-        message.serialize(serial_response)
-
-        # Per documention, https://docs.python.org/3.8/library/io.html#io.IOBase.seek,
-        # seek to end of stream for length
-        # SEEK_SET or 0 - start of the stream (the default); offset should be zero or positive
-        # SEEK_CUR or 1 - current stream position; offset may be negative
-        # SEEK_END or 2 - end of the stream; offset is usually negative
-        response_len = serial_response.seek(0, 2)
+        serial_response = serialize_message(message)
 
         msg_length = struct.pack("<I", len(serial_response))
         serialized_message = dest_info + msg_length + serial_response

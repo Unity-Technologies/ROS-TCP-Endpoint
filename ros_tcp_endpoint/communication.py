@@ -12,27 +12,30 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import rclpy
+from rclpy.node import Node
 
-class RosSender:
+
+class RosSender(Node):
     """
         Base class for ROS communication where data is sent to the ROS network.
     """
 
     def __init__(self, node_name):
-        self.node_name = node_name
+        super().__init__(node_name)
         pass
 
     def send(self, *args):
         raise NotImplementedError
 
 
-class RosReceiver:
+class RosReceiver(Node):
     """
         Base class for ROS communication where data is being sent outside of the ROS network.
     """
 
     def __init__(self, node_name):
-        self.node_name = node_name
+        super().__init__(node_name)
         pass
 
     def send(self, *args):
