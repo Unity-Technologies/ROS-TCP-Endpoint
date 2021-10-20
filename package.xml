@@ -1,23 +1,20 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>ros_tcp_endpoint</name>
   <version>0.6.0</version>
-  <description>Acts as the bridge between Unity messages sent via Websocket and ROS messages.</description>
-
+  <description>ROS TCP Endpoint Unity Integration (ROS2 version)
+  Acts as the bridge between Unity messages sent via TCP socket and ROS messages.
+  </description>
   <maintainer email="unity-robotics@unity3d.com">Unity Robotics</maintainer>
-
   <license>Apache 2.0</license>
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>message_generation</build_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <exec_depend>rospy</exec_depend>
-  <exec_depend>message_runtime</exec_depend>
 
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
 
-  <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <!-- Other tools can request additional information be placed here -->
-
+    <build_type>ament_python</build_type>
   </export>
 </package>
