@@ -57,15 +57,18 @@ class TcpServer(Node):
             self.get_logger().log("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
-            self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
+            self.tcp_ip = self.get_parameter(
+                "ROS_IP").get_parameter_value().string_value
 
         if tcp_port:
             self.get_logger().log(
-                "Using ROS_TCP_PORT override from constructor: {}".format(tcp_port)
+                "Using ROS_TCP_PORT override from constructor: {}".format(
+                    tcp_port)
             )
             self.tcp_port = tcp_port
         else:
-            self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
+            self.tcp_port = self.get_parameter(
+                "ROS_TCP_PORT").get_parameter_value().integer_value
 
         self.unity_tcp_sender = UnityTcpSender(self)
 
@@ -124,7 +127,8 @@ class TcpServer(Node):
     def handle_syscommand(self, topic, data):
         function = getattr(self.syscommands, topic[2:])
         if function is None:
-            self.send_unity_error("Don't understand SysCommand.'{}'".format(topic))
+            self.send_unity_error(
+                "Don't understand SysCommand.'{}'".format(topic))
         else:
             message_json = data.decode("utf-8")[:-1]
             params = json.loads(message_json)
@@ -138,7 +142,9 @@ class TcpServer(Node):
             MultiThreadedExecutor allows us to set the number of threads
             needed as well as the nodes that need to be spun.
         """
-        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
+        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + \
+            len(self.ros_services_table.keys()) + \
+            len(self.unity_services_table.keys()) + 1
         executor = MultiThreadedExecutor(num_threads)
 
         executor.add_node(self)
@@ -193,7 +199,8 @@ class SysCommands:
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
             self.tcp_server.send_unity_error(
-                "SysCommand.subscribe - Unknown message class '{}'".format(message_name)
+                "SysCommand.subscribe - Unknown message class '{}'".format(
+                    message_name)
             )
             return
 
@@ -222,7 +229,8 @@ class SysCommands:
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
             self.tcp_server.send_unity_error(
-                "SysCommand.publish - Unknown message class '{}'".format(message_name)
+                "SysCommand.publish - Unknown message class '{}'".format(
+                    message_name)
             )
             return
 
@@ -230,7 +238,8 @@ class SysCommands:
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 
-        new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
+        new_publisher = RosPublisher(
+            topic, message_class, queue_size=queue_size, latch=latch)
 
         self.tcp_server.publishers_table[topic] = new_publisher
         if self.tcp_server.executor is not None:
@@ -310,19 +319,21 @@ class SysCommands:
     def request(self, srv_id):  # the next message is a service request
         self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = True
-     
+
     def topic_list(self):
         self.tcp_server.unity_tcp_sender.send_topic_list()
 
     def resolve_message_name(self, name, extension="msg"):
         try:
             names = name.split("/")
-            if len(names)>2 :
-                module_name = names[0] #name[1] = "action"
+            if len(names) > 2:
+                module_name = names[0]  # name[1] = "action"
                 class_name = names[2]
                 base_class_name = class_name .split("_")[0]
-                sub_package = convert_camel_case_to_lower_case_underscore(base_class_name) 
-                importlib.import_module(module_name + ".action._"+ sub_package,package=class_name)
+                sub_package = convert_camel_case_to_lower_case_underscore(
+                    base_class_name)
+                importlib.import_module(
+                    module_name + ".action._" + sub_package, package=class_name)
                 module = sys.modules[module_name]
                 if module is None:
                     self.tcp_server.get_logger().error(
@@ -331,17 +342,20 @@ class SysCommands:
                 module = getattr(module, "action")
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}".format(module_name, "action")
+                        "Failed to resolve module {}.{}".format(
+                            module_name, "action")
                     )
                 module = getattr(module, f"_{sub_package}")
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}.{}".format(module_name, "action",f"_{sub_package}")
+                        "Failed to resolve module {}.{}.{}".format(
+                            module_name, "action", f"_{sub_package}")
                     )
                 module = getattr(module, class_name)
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}.{}.{}".format(module_name, "action",f"_{sub_package}", class_name)
+                        "Failed to resolve module {}.{}.{}.{}".format(
+                            module_name, "action", f"_{sub_package}", class_name)
                     )
                 return module
             else:
@@ -356,12 +370,14 @@ class SysCommands:
                 module = getattr(module, extension)
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}".format(module_name, extension)
+                        "Failed to resolve module {}.{}".format(
+                            module_name, extension)
                     )
                 module = getattr(module, class_name)
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
+                        "Failed to resolve module {}.{}.{}".format(
+                            module_name, extension, class_name)
                     )
                 return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
