@@ -144,8 +144,10 @@ class ClientThread(threading.Thread):
 
     def send_ros_service_request(self, srv_id, destination, data):
         if destination not in self.tcp_server.ros_services_table.keys():
-            error_msg = "Service destination '{}' is not registered! Known services are: {} ".format(
-                destination, self.tcp_server.ros_services_table.keys()
+            error_msg = (
+                "Service destination '{}' is not registered! Known services are: {} ".format(
+                    destination, self.tcp_server.ros_services_table.keys()
+                )
             )
             self.tcp_server.send_unity_error(error_msg)
             self.logerr(error_msg)

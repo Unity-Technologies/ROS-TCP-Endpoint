@@ -15,9 +15,11 @@
 
 class RosTcpEndpointError(Exception):
     """Base class for this package's custom exceptions"""
+
     pass
 
 
 class TopicOrServiceNameDoesNotExistError(RosTcpEndpointError):
     """The topic or service name passed does not exist in the source destination dictionary."""
+
     pass
