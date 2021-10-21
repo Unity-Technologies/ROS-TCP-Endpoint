@@ -31,6 +31,8 @@ from .publisher import RosPublisher
 from .service import RosService
 from .unity_service import UnityService
 
+from rosidl_cmake import convert_camel_case_to_lower_case_underscore
+
 
 class TcpServer(Node):
     """
@@ -308,32 +310,60 @@ class SysCommands:
     def request(self, srv_id):  # the next message is a service request
         self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = True
-
+     
     def topic_list(self):
         self.tcp_server.unity_tcp_sender.send_topic_list()
 
     def resolve_message_name(self, name, extension="msg"):
         try:
             names = name.split("/")
-            module_name = names[0]
-            class_name = names[1]
-            importlib.import_module(module_name + "." + extension)
-            module = sys.modules[module_name]
-            if module is None:
-                self.tcp_server.get_logger().error(
-                    "Failed to resolve module {}".format(module_name)
-                )
-            module = getattr(module, extension)
-            if module is None:
-                self.tcp_server.get_logger().error(
-                    "Failed to resolve module {}.{}".format(module_name, extension)
-                )
-            module = getattr(module, class_name)
-            if module is None:
-                self.tcp_server.get_logger().error(
-                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
-                )
-            return module
+            if len(names)>2 :
+                module_name = names[0] #name[1] = "action"
+                class_name = names[2]
+                base_class_name = class_name .split("_")[0]
+                sub_package = convert_camel_case_to_lower_case_underscore(base_class_name) 
+                importlib.import_module(module_name + ".action._"+ sub_package,package=class_name)
+                module = sys.modules[module_name]
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}".format(module_name)
+                    )
+                module = getattr(module, "action")
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}.{}".format(module_name, "action")
+                    )
+                module = getattr(module, f"_{sub_package}")
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}.{}.{}".format(module_name, "action",f"_{sub_package}")
+                    )
+                module = getattr(module, class_name)
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}.{}.{}.{}".format(module_name, extension,f"_{sub_package}", class_name)
+                    )
+                return module
+            else:
+                module_name = names[0]
+                class_name = names[1]
+                importlib.import_module(module_name + "." + extension)
+                module = sys.modules[module_name]
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}".format(module_name)
+                    )
+                module = getattr(module, extension)
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}.{}".format(module_name, extension)
+                    )
+                module = getattr(module, class_name)
+                if module is None:
+                    self.tcp_server.get_logger().error(
+                        "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
+                    )
+                return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
             self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
             return None
