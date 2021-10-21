@@ -341,7 +341,7 @@ class SysCommands:
                 module = getattr(module, class_name)
                 if module is None:
                     self.tcp_server.get_logger().error(
-                        "Failed to resolve module {}.{}.{}.{}".format(module_name, extension,f"_{sub_package}", class_name)
+                        "Failed to resolve module {}.{}.{}.{}".format(module_name, "action",f"_{sub_package}", class_name)
                     )
                 return module
             else:
