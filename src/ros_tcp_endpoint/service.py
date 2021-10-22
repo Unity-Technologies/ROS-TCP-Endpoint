@@ -31,7 +31,7 @@ class RosService(RosSender):
             service_class:  The service class in catkin workspace
         """
         strippedService = re.sub("[^A-Za-z0-9_]+", "", service)
-        node_name = f"{strippedService}_RosService"
+        node_name = "{}_RosService".format(strippedService)
         RosSender.__init__(self, node_name)
 
         self.srv_class = service_class._request_class()

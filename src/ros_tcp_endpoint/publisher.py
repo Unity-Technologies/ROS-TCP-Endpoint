@@ -32,7 +32,7 @@ class RosPublisher(RosSender):
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
         strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
-        node_name = f"{strippedTopic}_RosPublisher"
+        node_name = "{}_RosPublisher".format(strippedTopic)
         RosSender.__init__(self, node_name)
         self.msg = message_class()
         self.pub = rospy.Publisher(topic, message_class, queue_size=queue_size, latch=latch)

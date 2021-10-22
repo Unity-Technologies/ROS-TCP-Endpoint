@@ -34,7 +34,7 @@ class UnityService(RosReceiver):
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
         strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
-        node_name = f"{strippedTopic}_service"
+        node_name = "{}_service".format(strippedTopic)
 
         self.topic = topic
         self.service_class = service_class

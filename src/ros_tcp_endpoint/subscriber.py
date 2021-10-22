@@ -34,7 +34,7 @@ class RosSubscriber(RosReceiver):
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
         strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
-        self.node_name = f"{strippedTopic}_RosSubscriber"
+        self.node_name = "{}_RosSubscriber".format(strippedTopic)
         RosReceiver.__init__(self, self.node_name)
         self.topic = topic
         self.msg = message_class

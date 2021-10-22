@@ -9,7 +9,7 @@ def main(args=None):
     tcp_server = TcpServer("UnityEndpoint")
 
     # Start the Server Endpoint
-    rospy.init_node(ros_node_name, anonymous=True)
+    rospy.init_node(tcp_server.node_name, anonymous=True)
     tcp_server.start()
     rospy.spin()
 
