@@ -37,8 +37,6 @@ class UnityTcpSender:
     """
 
     def __init__(self, tcp_server):
-        # super().__init__(f'UnityTcpSender')
-
         self.sender_id = 1
         self.time_between_halt_checks = 5
         self.tcp_server = tcp_server
