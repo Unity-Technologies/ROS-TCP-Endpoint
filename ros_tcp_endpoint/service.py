@@ -24,20 +24,20 @@ class RosService(RosSender):
     """
     Class to send messages to a ROS service.
     """
+
     def __init__(self, service, service_class):
         """
         Args:
             service:        The service name in ROS
             service_class:  The service class in catkin workspace
         """
-        strippedService = re.sub('[^A-Za-z0-9_]+', '', service)
-        node_name = f'{strippedService}_RosService'
+        strippedService = re.sub("[^A-Za-z0-9_]+", "", service)
+        node_name = f"{strippedService}_RosService"
         RosSender.__init__(self, node_name)
-        
+
         self.service_topic = service
         self.cli = self.create_client(service_class, service)
         self.req = service_class.Request()
-
 
     def send(self, data):
         """
@@ -55,9 +55,11 @@ class RosService(RosSender):
         message = deserialize_message(data, message_type)
 
         if not self.cli.service_is_ready():
-            self.get_logger().error('Ignoring service call to {} - service is not ready.'.format(self.service_topic))
+            self.get_logger().error(
+                "Ignoring service call to {} - service is not ready.".format(self.service_topic)
+            )
             return None
-            
+
         self.future = self.cli.call_async(message)
 
         while rclpy.ok():
@@ -66,12 +68,11 @@ class RosService(RosSender):
                     response = self.future.result()
                     return response
                 except Exception as e:
-                    self.get_logger().info(f'Service call failed {e}')
+                    self.get_logger().info(f"Service call failed {e}")
 
                 break
 
         return None
-
 
     def unregister(self):
         """
