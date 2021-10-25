@@ -138,12 +138,11 @@ class UnityTcpSender:
             topic_list.topics = [item[0] for item in topics_and_types]
             for i in topics_and_types:
                 node = self.get_registered_topic(i[0])
-                if (len(i[1]) > 1):
-                    if (node is not None):
+                if len(i[1]) > 1:
+                    if node is not None:
                         self.tcp_server.get_logger().warning(
                             "Only one message type per topic is supported, but found multiple types for topic {}; maintaining {} as the subscribed type.".format(
-                                i[0],
-                                self.parse_message_name(node.msg),
+                                i[0], self.parse_message_name(node.msg)
                             )
                         )
                 topic_list.types = [

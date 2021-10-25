@@ -50,7 +50,7 @@ class TcpServer(Node):
 
         self.declare_parameter("ROS_IP", "0.0.0.0")
         self.declare_parameter("ROS_TCP_PORT", 10000)
-        
+
         if tcp_ip:
             self.loginfo("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
@@ -134,7 +134,7 @@ class TcpServer(Node):
 
     def logerr(self, text):
         self.get_logger().error(text)
-        
+
     def setup_executor(self):
         """
             Since rclpy.spin() is a blocking call the server needed a way
@@ -143,7 +143,13 @@ class TcpServer(Node):
             MultiThreadedExecutor allows us to set the number of threads
             needed as well as the nodes that need to be spun.
         """
-        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
+        num_threads = (
+            len(self.publishers_table.keys())
+            + len(self.subscribers_table.keys())
+            + len(self.ros_services_table.keys())
+            + len(self.unity_services_table.keys())
+            + 1
+        )
         executor = MultiThreadedExecutor(num_threads)
 
         executor.add_node(self)

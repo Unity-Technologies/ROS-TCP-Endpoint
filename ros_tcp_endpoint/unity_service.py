@@ -33,8 +33,8 @@ class UnityService(RosReceiver):
             service_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        strippedTopic = re.sub('[^A-Za-z0-9_]+', '', topic)
-        node_name = f'{strippedTopic}_service'
+        strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
+        node_name = f"{strippedTopic}_service"
         RosReceiver.__init__(self, node_name)
 
         self.topic = topic
