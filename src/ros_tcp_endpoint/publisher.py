@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import rospy
-
+import re
 from .communication import RosSender
 
 

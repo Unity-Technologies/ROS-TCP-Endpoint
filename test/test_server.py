@@ -15,14 +15,14 @@ def test_server_constructor(mock_ros, mock_socket):
     assert server.node_name == "test-tcp-server"
     assert server.tcp_ip == "127.0.0.1"
     assert server.buffer_size == 1024
-    assert server.connections == 2
+    assert server.connections == 10
 
 
 def test_start_server():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     assert server.tcp_ip == "127.0.0.1"
     assert server.tcp_port == 10000
-    assert server.connections == 2
+    assert server.connections == 10
     server.start()
 
 
@@ -81,16 +81,16 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
 def test_publish_add_new_topic(mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
-    assert server.publishers != {}
+    assert server.publishers_table != {}
     mock_ros_publisher.assert_called_once
 
 
 @mock.patch.object(rospy, "Publisher")
 def test_publish_existing_topic(mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
-    server.publishers = {"object_pos_topic": mock.Mock()}
+    server.publishers_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
-    assert server.publishers["object_pos_topic"] is not None
+    assert server.publishers_table["object_pos_topic"] is not None
     mock_ros_publisher.assert_called_once
 
 
@@ -98,14 +98,14 @@ def test_publish_empty_topic_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("", "pos")
     assert result is None
-    assert server.publishers == {}
+    assert server.publishers_table == {}
 
 
 def test_publish_empty_message_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("test-topic", "")
     assert result is None
-    assert server.publishers == {}
+    assert server.publishers_table == {}
 
 
 @mock.patch.object(rospy, "Subscriber")
