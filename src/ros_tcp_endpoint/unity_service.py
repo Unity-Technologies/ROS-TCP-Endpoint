@@ -43,7 +43,7 @@ class UnityService(RosReceiver):
 
         self.service = rospy.Service(self.topic, self.service_class, self.send)
 
-    def send(self, request, response):
+    def send(self, request):
         """
         Connect to TCP endpoint on client, pass along message and get reply
         Args:

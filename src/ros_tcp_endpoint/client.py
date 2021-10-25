@@ -134,8 +134,8 @@ class ClientThread(threading.Thread):
         # SEEK_END or 2 - end of the stream; offset is usually negative
         response_len = serial_response.seek(0, 2)
 
-        msg_length = struct.pack("<I", len(serial_response))
-        serialized_message = dest_info + msg_length + serial_response
+        msg_length = struct.pack("<I", response_len)
+        serialized_message = dest_info + msg_length + serial_response.getvalue()
 
         return serialized_message
 
