@@ -113,7 +113,7 @@ def test_publish_empty_message_should_return_none():
 def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).subscribe("object_pos_topic", "pos")
-    assert server.subscribers != {}
+    assert server.subscribers_table != {}
     mock_ros_subscriber.assert_called_once
 
 
@@ -121,9 +121,9 @@ def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
 @mock.patch.object(SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/Pos")
 def test_subscribe_to_existing_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
-    server.subscribers = {"object_pos_topic": mock.Mock()}
+    server.subscribers_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).subscribe("object_pos_topic", "pos")
-    assert server.subscribers["object_pos_topic"] is not None
+    assert server.subscribers_table["object_pos_topic"] is not None
     mock_ros_subscriber.assert_called_once
 
 
@@ -131,14 +131,14 @@ def test_subscribe_to_empty_topic_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).subscribe("", "pos")
     assert result is None
-    assert server.subscribers == {}
+    assert server.subscribers_table == {}
 
 
 def test_subscribe_to_empty_message_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).subscribe("test-topic", "")
     assert result is None
-    assert server.subscribers == {}
+    assert server.subscribers_table == {}
 
 
 @mock.patch.object(rospy, "ServiceProxy")
@@ -146,7 +146,7 @@ def test_subscribe_to_empty_message_should_return_none():
 def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
-    assert server.ros_services != {}
+    assert server.ros_services_table != {}
     mock_ros_service.assert_called_once
 
 
@@ -154,9 +154,9 @@ def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
 @mock.patch.object(SysCommands, "resolve_message_name")
 def test_ros_service_existing_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
-    server.ros_services = {"object_pos_topic": mock.Mock()}
+    server.ros_services_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
-    assert server.ros_services["object_pos_topic"] is not None
+    assert server.ros_services_table["object_pos_topic"] is not None
     mock_ros_service.assert_called_once
 
 
@@ -164,11 +164,11 @@ def test_ros_service_empty_topic_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("", "pos")
     assert result is None
-    assert server.ros_services == {}
+    assert server.ros_services_table == {}
 
 
 def test_ros_service_empty_message_should_return_none():
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("test-topic", "")
     assert result is None
-    assert server.ros_services == {}
+    assert server.ros_services_table == {}
