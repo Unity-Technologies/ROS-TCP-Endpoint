@@ -52,15 +52,13 @@ class TcpServer(Node):
         self.declare_parameter("ROS_TCP_PORT", 10000)
 
         if tcp_ip:
-            self.get_logger().log("Using ROS_IP override from constructor: {}".format(tcp_ip))
+            self.loginfo("Using ROS_IP override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
             self.tcp_ip = self.get_parameter("ROS_IP").get_parameter_value().string_value
 
         if tcp_port:
-            self.get_logger().log(
-                "Using ROS_TCP_PORT override from constructor: {}".format(tcp_port)
-            )
+            self.loginfo("Using ROS_TCP_PORT override from constructor: {}".format(tcp_port))
             self.tcp_port = tcp_port
         else:
             self.tcp_port = self.get_parameter("ROS_TCP_PORT").get_parameter_value().integer_value
@@ -93,7 +91,7 @@ class TcpServer(Node):
             Creates and binds sockets using TCP variables then listens for incoming connections.
             For each new connection a client thread will be created to handle communication.
         """
-        self.get_logger().info("Starting server on {}:{}".format(self.tcp_ip, self.tcp_port))
+        self.loginfo("Starting server on {}:{}".format(self.tcp_ip, self.tcp_port))
         tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tcp_server.bind((self.tcp_ip, self.tcp_port))
@@ -105,7 +103,7 @@ class TcpServer(Node):
                 (conn, (ip, port)) = tcp_server.accept()
                 ClientThread(conn, self, ip, port).start()
             except socket.timeout as err:
-                self.get_logger().error("ros_tcp_endpoint.TcpServer: socket timeout")
+                self.logerr("ros_tcp_endpoint.TcpServer: socket timeout")
 
     def send_unity_error(self, error):
         self.unity_tcp_sender.send_unity_error(error)
@@ -128,6 +126,15 @@ class TcpServer(Node):
             params = json.loads(message_json)
             function(**params)
 
+    def loginfo(self, text):
+        self.get_logger().info(text)
+
+    def logwarn(self, text):
+        self.get_logger().warning(text)
+
+    def logerr(self, text):
+        self.get_logger().error(text)
+
     def setup_executor(self):
         """
             Since rclpy.spin() is a blocking call the server needed a way
@@ -136,7 +143,13 @@ class TcpServer(Node):
             MultiThreadedExecutor allows us to set the number of threads
             needed as well as the nodes that need to be spun.
         """
-        num_threads = len(self.publishers_table.keys()) + len(self.subscribers_table.keys()) + len(self.ros_services_table.keys()) + len(self.unity_services_table.keys()) + 1
+        num_threads = (
+            len(self.publishers_table.keys())
+            + len(self.subscribers_table.keys())
+            + len(self.ros_services_table.keys())
+            + len(self.unity_services_table.keys())
+            + 1
+        )
         executor = MultiThreadedExecutor(num_threads)
 
         executor.add_node(self)
@@ -204,9 +217,7 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_subscriber)
 
-        self.tcp_server.get_logger().info(
-            "RegisterSubscriber({}, {}) OK".format(topic, message_class)
-        )
+        self.tcp_server.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
 
     def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
@@ -234,9 +245,7 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_publisher)
 
-        self.tcp_server.get_logger().info(
-            "RegisterPublisher({}, {}) OK".format(topic, message_class)
-        )
+        self.tcp_server.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
 
     def ros_service(self, topic, message_name):
         if topic == "":
@@ -265,9 +274,7 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
-        self.tcp_server.get_logger().info(
-            "RegisterRosService({}, {}) OK".format(topic, message_class)
-        )
+        self.tcp_server.loginfo("RegisterRosService({}, {}) OK".format(topic, message_class))
 
     def unity_service(self, topic, message_name):
         if topic == "":
@@ -297,9 +304,7 @@ class SysCommands:
         if self.tcp_server.executor is not None:
             self.tcp_server.executor.add_node(new_service)
 
-        self.tcp_server.get_logger().info(
-            "RegisterUnityService({}, {}) OK".format(topic, message_class)
-        )
+        self.tcp_server.loginfo("RegisterUnityService({}, {}) OK".format(topic, message_class))
 
     def response(self, srv_id):  # the next message is a service response
         self.tcp_server.pending_srv_id = srv_id
@@ -320,20 +325,18 @@ class SysCommands:
             importlib.import_module(module_name + "." + extension)
             module = sys.modules[module_name]
             if module is None:
-                self.tcp_server.get_logger().error(
-                    "Failed to resolve module {}".format(module_name)
-                )
+                self.tcp_server.logerr("Failed to resolve module {}".format(module_name))
             module = getattr(module, extension)
             if module is None:
-                self.tcp_server.get_logger().error(
+                self.tcp_server.logerr(
                     "Failed to resolve module {}.{}".format(module_name, extension)
                 )
             module = getattr(module, class_name)
             if module is None:
-                self.tcp_server.get_logger().error(
+                self.tcp_server.logerr(
                     "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
                 )
             return module
         except (IndexError, KeyError, AttributeError, ImportError) as e:
-            self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
+            self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
             return None

@@ -148,7 +148,7 @@ class ClientThread(threading.Thread):
                 destination, self.tcp_server.ros_services_table.keys()
             )
             self.tcp_server.send_unity_error(error_msg)
-            self.logerr(error_msg)
+            self.tcp_server.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
         else:
@@ -165,17 +165,11 @@ class ClientThread(threading.Thread):
         if not response:
             error_msg = "No response data from service '{}'!".format(destination)
             self.tcp_server.send_unity_error(error_msg)
-            self.logerr(error_msg)
+            self.tcp_server.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
 
         self.tcp_server.unity_tcp_sender.send_ros_service_response(srv_id, destination, response)
-
-    def loginfo(self, text):
-        self.tcp_server.get_logger().info(text)
-
-    def logerr(self, text):
-        self.tcp_server.get_logger().error(text)
 
     def run(self):
         """
@@ -192,7 +186,7 @@ class ClientThread(threading.Thread):
             msg: the ROS msg type as bytes
 
         """
-        self.loginfo("Connection from {}".format(self.incoming_ip))
+        self.tcp_server.loginfo("Connection from {}".format(self.incoming_ip))
         halt_event = threading.Event()
         self.tcp_server.unity_tcp_sender.start_sender(self.conn, halt_event)
         try:
@@ -225,10 +219,10 @@ class ClientThread(threading.Thread):
                         destination, self.tcp_server.publishers_table.keys()
                     )
                     self.tcp_server.send_unity_error(error_msg)
-                    self.logerr(error_msg)
+                    self.tcp_server.logerr(error_msg)
         except IOError as e:
-            self.logerr("Exception: {}".format(e))
+            self.tcp_server.logerr("Exception: {}".format(e))
         finally:
             halt_event.set()
             self.conn.close()
-            self.loginfo("Disconnected from {}".format(self.incoming_ip))
+            self.tcp_server.loginfo("Disconnected from {}".format(self.incoming_ip))
