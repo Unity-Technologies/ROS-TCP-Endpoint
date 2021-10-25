@@ -15,10 +15,11 @@
 
 class RosSender:
     """
-    Base class for ROS communication where data is sent to the ROS network.
+        Base class for ROS communication where data is sent to the ROS network.
     """
 
-    def __init__(self):
+    def __init__(self, node_name):
+        self.node_name = node_name
         pass
 
     def send(self, *args):
@@ -27,10 +28,11 @@ class RosSender:
 
 class RosReceiver:
     """
-    Base class for ROS communication where data is being sent outside of the ROS network.
+        Base class for ROS communication where data is being sent outside of the ROS network.
     """
 
-    def __init__(self):
+    def __init__(self, node_name):
+        self.node_name = node_name
         pass
 
     def send(self, *args):

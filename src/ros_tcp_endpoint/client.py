@@ -71,8 +71,7 @@ class ClientThread(threading.Thread):
         num = struct.unpack("<I", raw_bytes)[0]
         return num
 
-    @staticmethod
-    def read_string(conn):
+    def read_string(self):
         """
         Reads int32 from socket connection to determine how many bytes to
         read to get the string that follows. Read that number of bytes and
@@ -81,30 +80,32 @@ class ClientThread(threading.Thread):
         Returns: string
 
         """
-        str_len = ClientThread.read_int32(conn)
+        str_len = ClientThread.read_int32(self.conn)
 
-        str_bytes = ClientThread.recvall(conn, str_len)
+        str_bytes = ClientThread.recvall(self.conn, str_len)
         decoded_str = str_bytes.decode("utf-8")
 
         return decoded_str
 
-    @staticmethod
-    def read_message(conn):
+    def read_message(self, conn):
         """
         Decode destination and full message size from socket connection.
         Grab bytes in chunks until full message has been read.
         """
         data = b""
 
-        destination = ClientThread.read_string(conn)
+        destination = self.read_string()
         full_message_size = ClientThread.read_int32(conn)
 
         data = ClientThread.recvall(conn, full_message_size)
 
         if full_message_size > 0 and not data:
-            rospy.logerr("No data for a message size of {}, breaking!".format(full_message_size))
+            self.tcp_server.logerr(
+                "No data for a message size of {}, breaking!".format(full_message_size)
+            )
             return
 
+        destination = destination.rstrip("\x00")
         return destination, data
 
     @staticmethod
@@ -151,16 +152,16 @@ class ClientThread(threading.Thread):
         return cmd_info + json_info
 
     def send_ros_service_request(self, srv_id, destination, data):
-        if destination not in self.tcp_server.ros_services.keys():
+        if destination not in self.tcp_server.ros_services_table.keys():
             error_msg = "Service destination '{}' is not registered! Known services are: {} ".format(
-                destination, self.tcp_server.ros_services.keys()
+                destination, self.tcp_server.ros_services_table.keys()
             )
             self.tcp_server.send_unity_error(error_msg)
-            rospy.logerr(error_msg)
+            self.tcp_server.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
         else:
-            ros_communicator = self.tcp_server.ros_services[destination]
+            ros_communicator = self.tcp_server.ros_services_table[destination]
             service_thread = threading.Thread(
                 target=self.service_call_thread, args=(srv_id, destination, data, ros_communicator)
             )
@@ -173,7 +174,7 @@ class ClientThread(threading.Thread):
         if not response:
             error_msg = "No response data from service '{}'!".format(destination)
             self.tcp_server.send_unity_error(error_msg)
-            rospy.logerr(error_msg)
+            self.tcp_server.logerr(error_msg)
             # TODO: send a response to Unity anyway?
             return
 
@@ -194,7 +195,7 @@ class ClientThread(threading.Thread):
             msg: the ROS msg type as bytes
 
         """
-        rospy.loginfo("Connection from {}".format(self.incoming_ip))
+        self.tcp_server.loginfo("Connection from {}".format(self.incoming_ip))
         halt_event = threading.Event()
         self.tcp_server.unity_tcp_sender.start_sender(self.conn, halt_event)
         try:
@@ -219,18 +220,18 @@ class ClientThread(threading.Thread):
                 elif destination.startswith("__"):
                     # handle a system command, such as registering new topics
                     self.tcp_server.handle_syscommand(destination, data)
-                elif destination in self.tcp_server.publishers:
-                    ros_communicator = self.tcp_server.publishers[destination]
+                elif destination in self.tcp_server.publishers_table:
+                    ros_communicator = self.tcp_server.publishers_table[destination]
                     ros_communicator.send(data)
                 else:
                     error_msg = "Not registered to publish topic '{}'! Valid publish topics are: {} ".format(
-                        destination, self.tcp_server.publishers.keys()
+                        destination, self.tcp_server.publishers_table.keys()
                     )
                     self.tcp_server.send_unity_error(error_msg)
-                    rospy.logerr(error_msg)
+                    self.tcp_server.logerr(error_msg)
         except IOError as e:
-            rospy.logerr("Exception: {}".format(e))
+            self.tcp_server.logerr("Exception: {}".format(e))
         finally:
             halt_event.set()
             self.conn.close()
-            rospy.loginfo("Disconnected from {}".format(self.incoming_ip))
+            self.tcp_server.loginfo("Disconnected from {}".format(self.incoming_ip))
