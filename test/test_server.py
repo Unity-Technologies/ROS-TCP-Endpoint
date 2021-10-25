@@ -1,7 +1,6 @@
 from unittest import mock
 from ros_tcp_endpoint import TcpServer
 from ros_tcp_endpoint.server import SysCommands
-from ros_tcp_endpoint.server import resolve_message_name
 import importlib
 import rospy
 import sys
@@ -43,9 +42,7 @@ def test_unity_service_resolve_message_name_failure():
 
 @mock.patch.object(rospy, "Service")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/RosUnitySrvMessage",
+    SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/RosUnitySrvMessage"
 )
 def test_unity_service_resolve_news_service(mock_resolve_message, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
@@ -58,9 +55,7 @@ def test_unity_service_resolve_news_service(mock_resolve_message, mock_ros_servi
 
 @mock.patch.object(rospy, "Service")
 @mock.patch.object(
-    ros_tcp_endpoint.server,
-    "resolve_message_name",
-    return_value="unity_interfaces.msg/RosUnitySrvMessage",
+    SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/RosUnitySrvMessage"
 )
 def test_unity_service_resolve_existing_service(mock_resolve_message, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
@@ -74,8 +69,9 @@ def test_unity_service_resolve_existing_service(mock_resolve_message, mock_ros_s
 @mock.patch.object(sys, "modules", return_value="unity_interfaces.msg")
 @mock.patch.object(importlib, "import_module")
 def test_resolve_message_name(mock_import_module, mock_sys_modules):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     msg_name = "unity_interfaces.msg/UnityColor.msg"
-    result = resolve_message_name(msg_name)
+    result = SysCommands(server).resolve_message_name(msg_name)
     mock_import_module.assert_called_once
     mock_sys_modules.assert_called_once
     assert result is not None
@@ -113,9 +109,7 @@ def test_publish_empty_message_should_return_none():
 
 
 @mock.patch.object(rospy, "Subscriber")
-@mock.patch.object(
-    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
-)
+@mock.patch.object(SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/Pos")
 def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).subscribe("object_pos_topic", "pos")
@@ -124,9 +118,7 @@ def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
 
 
 @mock.patch.object(rospy, "Subscriber")
-@mock.patch.object(
-    ros_tcp_endpoint.server, "resolve_message_name", return_value="unity_interfaces.msg/Pos"
-)
+@mock.patch.object(SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/Pos")
 def test_subscribe_to_existing_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     server.subscribers = {"object_pos_topic": mock.Mock()}
@@ -150,7 +142,7 @@ def test_subscribe_to_empty_message_should_return_none():
 
 
 @mock.patch.object(rospy, "ServiceProxy")
-@mock.patch.object(ros_tcp_endpoint.server, "resolve_message_name")
+@mock.patch.object(SysCommands, "resolve_message_name")
 def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
@@ -159,7 +151,7 @@ def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
 
 
 @mock.patch.object(rospy, "ServiceProxy")
-@mock.patch.object(ros_tcp_endpoint.server, "resolve_message_name")
+@mock.patch.object(SysCommands, "resolve_message_name")
 def test_ros_service_existing_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     server.ros_services = {"object_pos_topic": mock.Mock()}
