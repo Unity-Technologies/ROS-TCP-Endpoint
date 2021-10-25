@@ -46,7 +46,7 @@ def test_unity_service_resolve_message_name_failure():
 )
 def test_unity_service_resolve_news_service(mock_resolve_message, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
-    assert server.ros_services == {}
+    assert server.ros_services_table == {}
     system_cmds = SysCommands(server)
     result = system_cmds.unity_service("get_pos", "unity_interfaces.msg/RosUnitySrvMessage")
     mock_ros_service.assert_called_once

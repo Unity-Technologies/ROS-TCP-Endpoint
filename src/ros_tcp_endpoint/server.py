@@ -126,7 +126,7 @@ class TcpServer:
     def logerr(self, text):
         rospy.logerr(text)
 
-    def unregister_node(old_node):
+    def unregister_node(self, old_node):
         if old_node is not None:
             old_node.unregister()
 
