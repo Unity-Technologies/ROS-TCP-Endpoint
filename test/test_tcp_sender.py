@@ -1,6 +1,7 @@
 import queue
 import socket
 from unittest import mock
+from ros_tcp_endpoint import TcpServer
 import ros_tcp_endpoint
 
 
