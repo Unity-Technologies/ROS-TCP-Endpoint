@@ -9,7 +9,7 @@ variables:
 commands:
     # run unit tests and save test results in /home/bokken/build/output/Unity-Technologies/ROS-TCP-Endpoint
     - command: |
-        source /opt/ros/$ROS_DISTRO/setup.bash && echo "ROS_DISTRO == $ROS_DISTRO"
+        source /opt/ros/galactic/setup.bash && echo "ROS_DISTRO == galactic"
         cd .. && mkdir -p ros_ws/src && cp -r ./ROS-TCP-Endpoint ros_ws/src
         cd ros_ws && colcon build && source install/local_setup.bash
         cd src/ROS-TCP-Endpoint
