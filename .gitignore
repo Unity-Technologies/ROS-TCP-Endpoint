@@ -2,6 +2,7 @@
 *.pyc
 .idea
 .coverage
+test-results/
 *~
 build
 devel

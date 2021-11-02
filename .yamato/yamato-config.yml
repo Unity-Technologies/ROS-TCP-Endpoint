@@ -5,7 +5,7 @@ agent:
     flavor: i1.large
 variables:
   # Coverage measured as a percentage (out of 100)
-  COVERAGE_EXPECTED: 30
+  COVERAGE_EXPECTED: 3.5
 commands:
     # run unit tests and save test results in /home/bokken/build/output/Unity-Technologies/ROS-TCP-Endpoint
     - command: |
@@ -13,7 +13,7 @@ commands:
         cd .. && mkdir -p ros_ws/src && cp -r ./ROS-TCP-Endpoint ros_ws/src
         cd ros_ws && colcon build && source install/local_setup.bash
         cd src/ROS-TCP-Endpoint
-        python3 -m pytest --cov=. --cov-report xml:../../../ROS-TCP-Endpoint/test-results/coverage.xml --cov-report html:../../../ROS-TCP-Endpoint/test-results/coverage.html test/
+        python3 -m pytest --cov=. --cov-report xml:./test-results/coverage.xml --cov-report html:./test-results/coverage.html test/
     # check the test coverage
     - command: |
         linecoverage=$(head -2 test-results/coverage.xml | grep -Eo 'line-rate="[0-9]+([.][0-9]+)?"' | grep -Eo "[0-9]+([.][0-9]+)?")
