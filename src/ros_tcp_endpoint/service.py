@@ -14,6 +14,7 @@
 
 import rospy
 from rospy.service import ServiceException
+import re
 
 from .communication import RosSender
 
@@ -29,7 +30,10 @@ class RosService(RosSender):
             service:        The service name in ROS
             service_class:  The service class in catkin workspace
         """
-        RosSender.__init__(self)
+        strippedService = re.sub("[^A-Za-z0-9_]+", "", service)
+        node_name = "{}_RosService".format(strippedService)
+        RosSender.__init__(self, node_name)
+
         self.srv_class = service_class._request_class()
         self.srv = rospy.ServiceProxy(service, service_class)
 

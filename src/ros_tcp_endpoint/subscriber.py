@@ -14,6 +14,7 @@
 
 import rospy
 import socket
+import re
 
 from .communication import RosReceiver
 from .client import ClientThread
@@ -32,9 +33,10 @@ class RosSubscriber(RosReceiver):
             message_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        RosReceiver.__init__(self)
+        strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
+        self.node_name = "{}_RosSubscriber".format(strippedTopic)
+        RosReceiver.__init__(self, self.node_name)
         self.topic = topic
-        self.node_name = "{}_subscriber".format(topic)
         self.msg = message_class
         self.tcp_server = tcp_server
         self.queue_size = queue_size
@@ -52,7 +54,6 @@ class RosSubscriber(RosReceiver):
             self.msg: The deserialize message
 
         """
-
         self.tcp_server.send_unity_message(self.topic, data)
         return self.msg
 
