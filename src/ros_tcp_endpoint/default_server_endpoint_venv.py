@@ -6,13 +6,14 @@ import sys
 from time import sleep
 
 def is_venv():
-    return (hasattr(sys, 'real_prefix') or
-            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+    return hasattr(sys, "real_prefix") or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
 
-arg='--venv'
+arg = "--venv"
 args = sys.argv[1:]
 
-path_to_venv = args[args.index(arg) + 1].rstrip('/')
+path_to_venv = args[args.index(arg) + 1].rstrip("/")
 
 if not is_venv():
     python_bin = path_to_venv + "/bin/python"
