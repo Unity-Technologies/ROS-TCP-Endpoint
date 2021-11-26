@@ -9,3 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_python_setup()
 
 catkin_package(CATKIN_DEPENDS message_runtime )
+
+catkin_install_python(PROGRAMS
+  src/ros_tcp_endpoint/default_server_endpoint.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
