@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Added
 
+Support for python3 (ROS Noetic) installs by adding `catkin_install_python` to CMakeLists
+
 ### Changed
 
 ### Deprecated
