@@ -17,6 +17,7 @@ import socket
 import time
 import threading
 import struct
+
 from .client import ClientThread
 from .thread_pauser import ThreadPauser
 from io import BytesIO
@@ -35,10 +36,10 @@ class UnityTcpSender:
     Sends messages to Unity.
     """
 
-    def __init__(self):
-        # if we have a valid IP at this point, it was overridden locally so always use that
+    def __init__(self, tcp_server):
         self.sender_id = 1
         self.time_between_halt_checks = 5
+        self.tcp_server = tcp_server
 
         # Each sender thread has its own queue: this is always the queue for the currently active thread.
         self.queue = None
@@ -114,6 +115,18 @@ class UnityTcpSender:
 
         thread_pauser.resume_with_result(data)
 
+    def get_registered_topic(self, topic):
+        if topic in self.tcp_server.publishers_table:
+            return self.tcp_server.publishers_table[topic]
+        elif topic in self.tcp_server.subscribers_table:
+            return self.tcp_server.subscribers_table[topic]
+        elif topic in self.tcp_server.ros_services_table:
+            return self.tcp_server.ros_services_table[topic]
+        elif topic in self.tcp_server.unity_services_table:
+            return self.tcp_server.unity_services_table[topic]
+        else:
+            return None
+
     def send_topic_list(self):
         if self.queue is not None:
             topic_list = SysCommand_TopicsResponse()
@@ -158,13 +171,24 @@ class UnityTcpSender:
                 try:
                     conn.sendall(item)
                 except Exception as e:
-                    rospy.logerr("Exception on Send {}".format(e))
+                    self.tcp_server.logerr("Exception {}".format(e))
                     break
         finally:
             halt_event.set()
             with self.queue_lock:
                 if self.queue is local_queue:
                     self.queue = None
+
+    def parse_message_name(self, name):
+        try:
+            # Example input string: <class 'std_msgs.msg._string.Metaclass_String'>
+            names = (str(type(name))).split(".")
+            module_name = names[0][8:]
+            class_name = names[-1].split("_")[-1][:-2]
+            return "{}/{}".format(module_name, class_name)
+        except (IndexError, AttributeError, ImportError) as e:
+            self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
+            return None
 
 
 class SysCommand_Log:
