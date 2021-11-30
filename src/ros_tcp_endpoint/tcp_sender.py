@@ -17,6 +17,7 @@ import socket
 import time
 import threading
 import struct
+import json
 
 from .client import ClientThread
 from .thread_pauser import ThreadPauser
@@ -151,7 +152,8 @@ class UnityTcpSender:
         local_queue = Queue()
 
         # send a handshake message to confirm the connection and version number
-        handshake = SysCommand_Handshake()
+        handshake_metadata = SysCommand_Handshake_Metadata()
+        handshake = SysCommand_Handshake(handshake_metadata)
         local_queue.put(ClientThread.serialize_command("__handshake", handshake))
 
         with self.queue_lock:
@@ -208,6 +210,11 @@ class SysCommand_TopicsResponse:
 
 
 class SysCommand_Handshake:
-    def __init__(self):
+    def __init__(self, metadata):
         self.version = "v0.7.0"
-        self.meta = ""
+        self.metadata = json.dumps(metadata.__dict__)
+
+
+class SysCommand_Handshake_Metadata:
+    def __init__(self):
+        self.protocol = "ROS1"
