@@ -28,5 +28,5 @@ jobs:
             - name: Sonarqube Scanner Staging
               uses: sonarsource/sonarcloud-github-action@master
               env:
-                  SONARCLOUD_URL: ${{ secrets.SONARQUBE_ENDPOINT_URL_STG }}
-                  SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN_STG }}
+                  SONARCLOUD_URL: ${{ secrets.SONARQUBE_ENDPOINT_URL_PRD }}
+                  SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN_PRD }}
