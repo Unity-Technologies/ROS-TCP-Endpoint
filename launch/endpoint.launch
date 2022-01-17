@@ -1,4 +1,9 @@
 <launch>
-    <rosparam file="$(find ros_tcp_endpoint)/config/params.yaml" command="load"/>
-    <node name="server_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint.py" args="--wait" output="screen" respawn="true" />
+    <arg name="tcp_ip" default="127.0.0.1"/>
+    <arg name="tcp_port" default="10000"/>
+
+    <node name="unity_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint.py" output="screen">
+        <param name="tcp_ip" type="string" value="$(arg tcp_ip)"/>
+        <param name="tcp_port" type="int" value="$(arg tcp_port)"/>
+    </node>
 </launch>
