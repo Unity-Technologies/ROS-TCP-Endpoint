@@ -1,5 +1,5 @@
 <launch>
-    <arg name="tcp_ip" default="127.0.0.1"/>
+    <arg name="tcp_ip" default="0.0.0.0"/>
     <arg name="tcp_port" default="10000"/>
 
     <node name="unity_endpoint" pkg="ros_tcp_endpoint" type="default_server_endpoint.py" output="screen">

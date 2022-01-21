@@ -46,7 +46,7 @@ class TcpServer:
             self.loginfo("Using 'tcp_ip' override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
-            self.tcp_ip = rospy.get_param("~tcp_ip", "127.0.0.1")
+            self.tcp_ip = rospy.get_param("~tcp_ip", "0.0.0.0")
 
         if tcp_port:
             self.loginfo("Using 'tcp_port' override from constructor: {}".format(tcp_port))
