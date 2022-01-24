@@ -76,7 +76,7 @@ class UnityTcpSender:
             command = SysCommand_Service()
             command.srv_id = srv_id
             serialized_header = ClientThread.serialize_command("__response", command)
-            serialized_message = ClientThread.serialize_message(topic, message)
+            serialized_message = ClientThread.serialize_message(destination, message)
             self.queue.put(serialized_header.join(serialized_message))
 
     def send_unity_message(self, topic, message):
