@@ -75,10 +75,9 @@ class UnityTcpSender:
         if self.queue is not None:
             command = SysCommand_Service()
             command.srv_id = srv_id
-            serialized_data = ClientThread.serialize_command("__response", command).join(
-                ClientThread.serialize_message(topic, message)
-            )
-            self.queue.put(serialized_data)
+            serialized_header = ClientThread.serialize_command("__response", command)
+            serialized_message = ClientThread.serialize_message(topic, message)
+            self.queue.put(serialized_header.join(serialized_message))
 
     def send_unity_message(self, topic, message):
         if self.queue is not None:
@@ -97,9 +96,9 @@ class UnityTcpSender:
 
         command = SysCommand_Service()
         command.srv_id = srv_id
-        serialized_bytes = ClientThread.serialize_command("__request", command)
-        self.queue.put(serialized_bytes)
-        self.send_unity_message(topic, request)
+        serialized_header = ClientThread.serialize_command("__request", command)
+        serialized_message = ClientThread.serialize_message(topic, request)
+        self.queue.put(serialized_header.join(serialized_message))
 
         # rospy starts a new thread for each service request,
         # so it won't break anything if we sleep now while waiting for the response
