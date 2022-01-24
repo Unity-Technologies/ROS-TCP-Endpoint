@@ -75,11 +75,10 @@ class UnityTcpSender:
         if self.queue is not None:
             command = SysCommand_Service()
             command.srv_id = srv_id
-            serialized_header = ClientThread.serialize_command("__response", command)
-            serialized_message = serialized_header.join(
+            serialized_data = ClientThread.serialize_command("__response", command).join(
                 ClientThread.serialize_message(topic, message)
             )
-            self.queue.put(serialized_message)
+            self.queue.put(serialized_data)
 
     def send_unity_message(self, topic, message):
         if self.queue is not None:
