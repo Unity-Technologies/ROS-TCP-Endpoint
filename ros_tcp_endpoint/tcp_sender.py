@@ -167,7 +167,12 @@ class UnityTcpSender:
     def sender_loop(self, conn, tid, halt_event):
         s = None
         local_queue = Queue()
-        local_queue.put(b"\0\0\0\0\0\0\0\0")  # send an empty message to confirm connection
+
+        # send a handshake message to confirm the connection and version number
+        handshake_metadata = SysCommand_Handshake_Metadata()
+        handshake = SysCommand_Handshake(handshake_metadata)
+        local_queue.put(ClientThread.serialize_command("__handshake", handshake))
+
         with self.queue_lock:
             self.queue = local_queue
 
@@ -206,13 +211,27 @@ class UnityTcpSender:
 
 
 class SysCommand_Log:
-    text = ""
+    def __init__(self):
+        text = ""
 
 
 class SysCommand_Service:
-    srv_id = 0
+    def __init__(self):
+        srv_id = 0
 
 
 class SysCommand_TopicsResponse:
-    topics = []
-    types = []
+    def __init__(self):
+        topics = []
+        types = []
+
+
+class SysCommand_Handshake:
+    def __init__(self, metadata):
+        self.version = "v0.7.0"
+        self.metadata = json.dumps(metadata.__dict__)
+
+
+class SysCommand_Handshake_Metadata:
+    def __init__(self):
+        self.protocol = "ROS2"
