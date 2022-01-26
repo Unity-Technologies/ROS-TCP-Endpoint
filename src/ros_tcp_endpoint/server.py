@@ -43,16 +43,16 @@ class TcpServer:
             connections:             Max number of queued connections. See Python Socket documentation
         """
         if tcp_ip:
-            self.loginfo("Using ROS_IP override from constructor: {}".format(tcp_ip))
+            self.loginfo("Using 'tcp_ip' override from constructor: {}".format(tcp_ip))
             self.tcp_ip = tcp_ip
         else:
-            self.tcp_ip = rospy.get_param("/ROS_IP")
+            self.tcp_ip = rospy.get_param("~tcp_ip", "0.0.0.0")
 
         if tcp_port:
-            self.loginfo("Using ROS_TCP_PORT override from constructor: {}".format(tcp_port))
+            self.loginfo("Using 'tcp_port' override from constructor: {}".format(tcp_port))
             self.tcp_port = tcp_port
         else:
-            self.tcp_port = rospy.get_param("/ROS_TCP_PORT", 10000)
+            self.tcp_port = rospy.get_param("~tcp_port", 10000)
 
         self.unity_tcp_sender = UnityTcpSender(self)
 
