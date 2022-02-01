@@ -1,12 +1,14 @@
 import queue
 import socket
 from unittest import mock
+from ros_tcp_endpoint import TcpServer
 import ros_tcp_endpoint
 
 
 @mock.patch("ros_tcp_endpoint.tcp_sender.rospy")
 def test_tcp_sender_constructor(mock_ros):
-    tcp_sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    tcp_sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender(server)
     assert tcp_sender.sender_id == 1
     assert tcp_sender.time_between_halt_checks == 5
     assert tcp_sender.queue == None
@@ -26,7 +28,8 @@ def test_tcp_sender_constructor(mock_ros):
 
 @mock.patch.object(ros_tcp_endpoint.client.ClientThread, "serialize_message")
 def test_send_message_should_serialize_message(mock_serialize_msg):
-    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender(server)
     sender.queue = queue.Queue()
     sender.send_unity_message("test topic", "test msg")
     mock_serialize_msg.assert_called_once()
@@ -44,7 +47,8 @@ def test_send_message_should_serialize_message(mock_serialize_msg):
 
 @mock.patch("ros_tcp_endpoint.thread_pauser.ThreadPauser")
 def test_send_unity_service_response_should_resume(mock_thread_pauser_class):
-    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender(server)
     thread_pauser = mock_thread_pauser_class()
     sender.services_waiting = {"moveit": thread_pauser}
     sender.send_unity_service_response("moveit", "test data")
@@ -52,7 +56,8 @@ def test_send_unity_service_response_should_resume(mock_thread_pauser_class):
 
 
 def test_start_sender_should_increase_sender_id():
-    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender()
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
+    sender = ros_tcp_endpoint.tcp_sender.UnityTcpSender(server)
     init_sender_id = 1
     assert sender.sender_id == init_sender_id
     sender.start_sender(mock.Mock(), mock.Mock())

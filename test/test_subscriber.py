@@ -7,7 +7,7 @@ import rospy
 def test_subscriber_send(mock_ros):
     mock_tcp_server = mock.Mock()
     subscriber = RosSubscriber("color", mock.Mock(), mock_tcp_server)
-    assert subscriber.node_name == "color_subscriber"
+    assert subscriber.node_name == "color_RosSubscriber"
     subscriber.send("test data")
     mock_tcp_server.send_unity_message.assert_called_once()
 
@@ -16,6 +16,6 @@ def test_subscriber_send(mock_ros):
 def test_subscriber_unregister(mock_ros):
     mock_tcp_server = mock.Mock()
     subscriber = RosSubscriber("color", mock.Mock(), mock_tcp_server)
-    assert subscriber.node_name == "color_subscriber"
+    assert subscriber.node_name == "color_RosSubscriber"
     subscriber.unregister()
     subscriber.sub.unregister.assert_called_once()

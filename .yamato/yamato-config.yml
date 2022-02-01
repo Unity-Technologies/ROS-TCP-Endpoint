@@ -3,6 +3,9 @@ agent:
     type: Unity::VM
     image: robotics/ci-ubuntu20:v0.1.0-795910
     flavor: i1.large
+variables:
+  # Coverage measured as a percentage (out of 100) 
+  COVERAGE_EXPECTED: 30
 commands:
     # run unit tests and save test results in /home/bokken/build/output/Unity-Technologies/ROS-TCP-Endpoint
     - command: |
@@ -15,14 +18,14 @@ commands:
     - command: |
         linecoverage=$(head -2 test-results/coverage.xml | grep -Eo 'line-rate="[0-9]+([.][0-9]+)?"' | grep -Eo "[0-9]+([.][0-9]+)?")
         echo "Line coverage: $linecoverage"
-        if (( $(echo "$linecoverage < 0.3" | bc -l) )); then exit 1; fi
+        if (( $(echo "$linecoverage * 100.0 < $COVERAGE_EXPECTED" | bc -l) ));
+        then echo "ERROR: Code Coverage is under threshold of $COVERAGE_EXPECTED%" && exit 1
+        fi
 triggers:
     cancel_old_ci: true
     expression: |
-        (pull_request.target eq "main"  AND
-        NOT pull_request.push.changes.all match "**/*.md") OR
-        (pull_request.target eq "dev" AND
-        NOT pull_request.push.changes.all match "**/*.md")
+        (pull_request.target eq "main" OR push.branch eq "main" OR pull_request.target eq "dev-ros" OR push.branch eq "dev-ros")
+        AND NOT pull_request.push.changes.all match "**/*.md"
 artifacts:
     logs:
         paths:

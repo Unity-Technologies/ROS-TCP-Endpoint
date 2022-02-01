@@ -44,6 +44,8 @@ def test_read_string_should_decode(mock_recvall, mock_read_int):
 @mock.patch.object(ClientThread, "read_int32", return_value=4)
 @mock.patch.object(ClientThread, "recvall", return_value=b"Hello world!")
 def test_read_message_return_destination_data(mock_recvall, mock_read_int, mock_read_str):
+    tcp_server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     mock_conn = mock.Mock()
-    result = ClientThread.read_message(mock_conn)
+    client_thread = ClientThread(mock_conn, tcp_server, "127.0.0.1", 10000)
+    result = client_thread.read_message(mock_conn)
     assert result == ("__srv", b"Hello world!")
