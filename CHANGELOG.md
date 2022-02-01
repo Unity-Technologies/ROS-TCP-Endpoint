@@ -23,7 +23,7 @@ Added Sonarqube scanner
 ### Fixed
 
 
-## [0.7.0] - 2022-02-04
+## [0.7.0] - 2022-02-01
 
 ### Added
 
