@@ -16,6 +16,7 @@ import rclpy
 import socket
 import time
 import threading
+import json
 
 from rclpy.node import Node
 from rclpy.serialization import deserialize_message
@@ -79,9 +80,9 @@ class UnityTcpSender:
         if self.queue is not None:
             command = SysCommand_Service()
             command.srv_id = srv_id
-            serialized_bytes = ClientThread.serialize_command("__response", command)
-            self.queue.put(serialized_bytes)
-            self.send_unity_message(destination, response)
+            serialized_header = ClientThread.serialize_command("__response", command)
+            serialized_message = ClientThread.serialize_message(destination, response)
+            self.queue.put(b"".join([serialized_header, serialized_message]))
 
     def send_unity_message(self, topic, message):
         if self.queue is not None:
@@ -100,9 +101,9 @@ class UnityTcpSender:
 
         command = SysCommand_Service()
         command.srv_id = srv_id
-        serialized_bytes = ClientThread.serialize_command("__request", command)
-        self.queue.put(serialized_bytes)
-        self.send_unity_message(topic, request)
+        serialized_header = ClientThread.serialize_command("__request", command)
+        serialized_message = ClientThread.serialize_message(topic, request)
+        self.queue.put(b"".join([serialized_header, serialized_message]))
 
         # rospy starts a new thread for each service request,
         # so it won't break anything if we sleep now while waiting for the response
@@ -138,12 +139,11 @@ class UnityTcpSender:
             topic_list.topics = [item[0] for item in topics_and_types]
             for i in topics_and_types:
                 node = self.get_registered_topic(i[0])
-                if (len(i[1]) > 1):
-                    if (node is not None):
+                if len(i[1]) > 1:
+                    if node is not None:
                         self.tcp_server.get_logger().warning(
                             "Only one message type per topic is supported, but found multiple types for topic {}; maintaining {} as the subscribed type.".format(
-                                i[0],
-                                self.parse_message_name(node.msg),
+                                i[0], self.parse_message_name(node.msg)
                             )
                         )
                 topic_list.types = [
@@ -168,7 +168,12 @@ class UnityTcpSender:
     def sender_loop(self, conn, tid, halt_event):
         s = None
         local_queue = Queue()
-        local_queue.put(b"\0\0\0\0\0\0\0\0")  # send an empty message to confirm connection
+
+        # send a handshake message to confirm the connection and version number
+        handshake_metadata = SysCommand_Handshake_Metadata()
+        handshake = SysCommand_Handshake(handshake_metadata)
+        local_queue.put(ClientThread.serialize_command("__handshake", handshake))
+
         with self.queue_lock:
             self.queue = local_queue
 
@@ -186,7 +191,7 @@ class UnityTcpSender:
                 try:
                     conn.sendall(item)
                 except Exception as e:
-                    self.tcp_server.get_logger().info("Exception {}".format(e))
+                    self.tcp_server.logerr("Exception {}".format(e))
                     break
         finally:
             halt_event.set()
@@ -202,18 +207,32 @@ class UnityTcpSender:
             class_name = names[-1].split("_")[-1][:-2]
             return "{}/{}".format(module_name, class_name)
         except (IndexError, AttributeError, ImportError) as e:
-            self.tcp_server.get_logger().error("Failed to resolve message name: {}".format(e))
+            self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
             return None
 
 
 class SysCommand_Log:
-    text = ""
+    def __init__(self):
+        text = ""
 
 
 class SysCommand_Service:
-    srv_id = 0
+    def __init__(self):
+        srv_id = 0
 
 
 class SysCommand_TopicsResponse:
-    topics = []
-    types = []
+    def __init__(self):
+        topics = []
+        types = []
+
+
+class SysCommand_Handshake:
+    def __init__(self, metadata):
+        self.version = "v0.7.0"
+        self.metadata = json.dumps(metadata.__dict__)
+
+
+class SysCommand_Handshake_Metadata:
+    def __init__(self):
+        self.protocol = "ROS2"

@@ -24,6 +24,7 @@ class UnityService(RosReceiver):
     """
     Class to register a ROS service that's implemented in Unity.
     """
+
     def __init__(self, topic, service_class, tcp_server, queue_size=10):
         """
 
@@ -32,8 +33,8 @@ class UnityService(RosReceiver):
             service_class: The message class in catkin workspace
             queue_size:    Max number of entries to maintain in an outgoing queue
         """
-        strippedTopic = re.sub('[^A-Za-z0-9_]+', '', topic)
-        node_name = f'{strippedTopic}_service'
+        strippedTopic = re.sub("[^A-Za-z0-9_]+", "", topic)
+        node_name = f"{strippedTopic}_service"
         RosReceiver.__init__(self, node_name)
 
         self.topic = topic
@@ -53,8 +54,7 @@ class UnityService(RosReceiver):
         Returns:
             The response message
         """
-        response = self.tcp_server.send_unity_service(self.topic, self.service_class, request)
-        return response
+        return self.tcp_server.send_unity_service(self.topic, self.service_class, request)
 
     def unregister(self):
         """

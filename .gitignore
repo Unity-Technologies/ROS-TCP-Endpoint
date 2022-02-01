@@ -1,6 +1,8 @@
 .DS_Store
 *.pyc
 .idea
+.coverage
+test-results/
 *~
 build
 devel

@@ -20,6 +20,7 @@ class RosSender(Node):
     """
         Base class for ROS communication where data is sent to the ROS network.
     """
+
     def __init__(self, node_name):
         super().__init__(node_name)
         pass
@@ -32,6 +33,7 @@ class RosReceiver(Node):
     """
         Base class for ROS communication where data is being sent outside of the ROS network.
     """
+
     def __init__(self, node_name):
         super().__init__(node_name)
         pass
