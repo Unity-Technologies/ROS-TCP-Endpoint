@@ -22,6 +22,18 @@ Added Sonarqube scanner
 
 ### Fixed
 
+
+## [0.7.0] - 2022-02-04
+
+### Added
+
+Added Sonarqube scanner
+
+Send information during hand shaking for ros and package version checks
+
+Send service response as one queue item
+
+
 ## [0.6.0] - 2021-09-30
 
 Add the [Close Stale Issues](https://github.com/marketplace/actions/close-stale-issues) action
