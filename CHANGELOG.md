@@ -12,8 +12,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Added
 
-Added Sonarqube Scanner
-
 ### Changed
 
 ### Deprecated
@@ -21,6 +19,19 @@ Added Sonarqube Scanner
 ### Removed
 
 ### Fixed
+
+## [0.7.0] - 2022-02-01
+
+### Added
+
+Added Sonarqube Scanner
+
+Private ros params
+
+Send information during hand shaking for ros and package version checks
+
+Send service response as one queue item
+
 
 ## [0.6.0] - 2021-09-30
 
