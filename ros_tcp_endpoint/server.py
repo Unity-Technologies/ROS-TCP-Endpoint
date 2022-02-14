@@ -319,6 +319,11 @@ class SysCommands:
 
     def resolve_message_name(self, name, extension="msg"):
         try:
+            if len(name) < 1:
+                self.tcp_server.logerr(
+                    "Failed to resolve empty message name; if message is being registered before Start(), please specify ROS message name, or move registration to Start()."
+                )
+                return None
             names = name.split("/")
             module_name = names[0]
             class_name = names[1]
