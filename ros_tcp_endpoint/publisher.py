@@ -26,7 +26,7 @@ class RosPublisher(RosSender):
     """
 
     # TODO: surface latch functionality
-    def __init__(self, topic, message_class, queue_size=10, latch=False):
+    def __init__(self, topic, message_class, qos):
         """
 
         Args:
@@ -38,7 +38,7 @@ class RosPublisher(RosSender):
         node_name = f"{strippedTopic}_RosPublisher"
         RosSender.__init__(self, node_name)
         self.msg = message_class()
-        self.pub = self.create_publisher(message_class, topic, queue_size)
+        self.pub = self.create_publisher(message_class, topic, qos)
 
     def send(self, data):
         """

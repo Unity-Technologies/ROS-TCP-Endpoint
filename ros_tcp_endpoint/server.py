@@ -23,6 +23,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.serialization import deserialize_message
+from rclpy.qos import QoSProfile
 
 from .tcp_sender import UnityTcpSender
 from .client import ClientThread
@@ -75,6 +76,8 @@ class TcpServer(Node):
         self.syscommands = SysCommands(self)
         self.pending_srv_id = None
         self.pending_srv_is_request = False
+
+        self.qos_default = QoSProfile(depth=10)
 
     def start(self, publishers=None, subscribers=None):
         if publishers is not None:
@@ -187,6 +190,81 @@ class TcpServer(Node):
 
         self.destroy_node()
 
+    def register_publisher_with_qos(self, topic, message_name, qos):
+        if topic == "":
+            self.send_unity_error(
+                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
+                    topic, message_name
+                )
+            )
+            return
+
+        message_class = self.resolve_message_name(message_name)
+        if message_class is None:
+            self.send_unity_error(
+                "SysCommand.publish - Unknown message class '{}'".format(message_name)
+            )
+            return
+
+        old_node = self.publishers_table.get(topic)
+        if old_node is not None:
+            self.unregister_node(old_node)
+
+        new_publisher = RosPublisher(topic, message_class, qos)
+
+        self.publishers_table[topic] = new_publisher
+        if self.executor is not None:
+            self.executor.add_node(new_publisher)
+
+        self.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
+
+    def load_qos_from_json(self, qos_string):
+        qos_json = json.loads(qos_string)
+        qos_final = QoSProfile(
+            depth=qos_json["depth"],
+            reliability=qos_json["reliability"],
+            durability=qos_json["durability"],
+            liveliness=qos_json["liveliness"],
+            history=qos_json["history"],
+        )
+        deadline = qos_json["deadline"]
+        if deadline >= 0:
+            qos_final.deadline = deadline
+        lifespan = qos_json["lifespan"]
+        if lifespan >= 0:
+            qos_final.lifespan = lifespan
+        liveliness_lease_duration = qos_json["liveliness_lease_duration"]
+        if liveliness_lease_duration >= 0:
+            qos_final.liveliness_lease_duration = liveliness_lease_duration
+        return qos_final
+
+    def resolve_message_name(self, name, extension="msg"):
+        try:
+            if len(name) < 1:
+                self.logerr(
+                    "Failed to resolve empty message name; if message is being registered before Start(), please specify ROS message name, or move registration to Start()."
+                )
+                return None
+            names = name.split("/")
+            module_name = names[0]
+            class_name = names[1]
+            importlib.import_module(module_name + "." + extension)
+            module = sys.modules[module_name]
+            if module is None:
+                self.logerr("Failed to resolve module {}".format(module_name))
+            module = getattr(module, extension)
+            if module is None:
+                self.logerr("Failed to resolve module {}.{}".format(module_name, extension))
+            module = getattr(module, class_name)
+            if module is None:
+                self.logerr(
+                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
+                )
+            return module
+        except (IndexError, KeyError, AttributeError, ImportError) as e:
+            self.logerr("Failed to resolve message name: {}".format(e))
+            return None
+
 
 class SysCommands:
     def __init__(self, tcp_server):
@@ -201,7 +279,7 @@ class SysCommands:
             )
             return
 
-        message_class = self.resolve_message_name(message_name)
+        message_class = self.tcp_server.resolve_message_name(message_name)
         if message_class is None:
             self.tcp_server.send_unity_error(
                 "SysCommand.subscribe - Unknown message class '{}'".format(message_name)
@@ -220,32 +298,13 @@ class SysCommands:
         self.tcp_server.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
 
     def publish(self, topic, message_name, queue_size=10, latch=False):
-        if topic == "":
-            self.tcp_server.send_unity_error(
-                "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
-                    topic, message_name
-                )
-            )
-            return
+        self.tcp_server.register_publisher_with_qos(
+            topic, message_name, QoSProfile(depth=queue_size)
+        )
 
-        message_class = self.resolve_message_name(message_name)
-        if message_class is None:
-            self.tcp_server.send_unity_error(
-                "SysCommand.publish - Unknown message class '{}'".format(message_name)
-            )
-            return
-
-        old_node = self.tcp_server.publishers_table.get(topic)
-        if old_node is not None:
-            self.tcp_server.unregister_node(old_node)
-
-        new_publisher = RosPublisher(topic, message_class, queue_size=queue_size, latch=latch)
-
-        self.tcp_server.publishers_table[topic] = new_publisher
-        if self.tcp_server.executor is not None:
-            self.tcp_server.executor.add_node(new_publisher)
-
-        self.tcp_server.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
+    def publish_qos(self, topic, message_name, qos):
+        qos_profile = self.tcp_server.load_qos_from_json(qos)
+        self.tcp_server.register_publisher_with_qos(topic, message_name, qos_profile)
 
     def ros_service(self, topic, message_name):
         if topic == "":
@@ -255,7 +314,7 @@ class SysCommands:
                 )
             )
             return
-        message_class = self.resolve_message_name(message_name, "srv")
+        message_class = self.tcp_server.resolve_message_name(message_name, "srv")
         if message_class is None:
             self.tcp_server.send_unity_error(
                 "RegisterRosService({}, {}) - Unknown service class '{}'".format(
@@ -285,7 +344,7 @@ class SysCommands:
             )
             return
 
-        message_class = self.resolve_message_name(message_name, "srv")
+        message_class = self.tcp_server.resolve_message_name(message_name, "srv")
         if message_class is None:
             self.tcp_server.send_unity_error(
                 "RegisterUnityService({}, {}) - Unknown service class '{}'".format(
@@ -316,32 +375,3 @@ class SysCommands:
 
     def topic_list(self):
         self.tcp_server.unity_tcp_sender.send_topic_list()
-
-    def resolve_message_name(self, name, extension="msg"):
-        try:
-            if len(name) < 1:
-                self.tcp_server.logerr(
-                    "Failed to resolve empty message name; if message is being registered before Start(), please specify ROS message name, or move registration to Start()."
-                )
-                return None
-            names = name.split("/")
-            module_name = names[0]
-            class_name = names[1]
-            importlib.import_module(module_name + "." + extension)
-            module = sys.modules[module_name]
-            if module is None:
-                self.tcp_server.logerr("Failed to resolve module {}".format(module_name))
-            module = getattr(module, extension)
-            if module is None:
-                self.tcp_server.logerr(
-                    "Failed to resolve module {}.{}".format(module_name, extension)
-                )
-            module = getattr(module, class_name)
-            if module is None:
-                self.tcp_server.logerr(
-                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
-                )
-            return module
-        except (IndexError, KeyError, AttributeError, ImportError) as e:
-            self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
-            return None
