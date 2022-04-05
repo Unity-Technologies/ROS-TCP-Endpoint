@@ -283,3 +283,9 @@ class SysCommands:
         except (IndexError, KeyError, AttributeError, ImportError) as e:
             self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
             return None
+
+    def remove_subscriber(self, topic):
+        old_subscriber = self.tcp_server.subscribers_table[topic]
+        old_subscriber.unregister()
+        del self.tcp_server.subscribers_table[topic]
+        self.tcp_server.loginfo("UnregisterSubscriber({}) OK".format(topic))
