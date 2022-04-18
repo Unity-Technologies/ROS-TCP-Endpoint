@@ -23,6 +23,9 @@ from .client import ClientThread
 from .thread_pauser import ThreadPauser
 from io import BytesIO
 
+from datetime import timezone
+import datetime
+
 # queue module was renamed between python 2 and 3
 try:
     from queue import Queue
@@ -137,6 +140,13 @@ class UnityTcpSender:
             serialized_bytes = ClientThread.serialize_command("__topic_list", topic_list)
             self.queue.put(serialized_bytes)
 
+    def send_ping(self):
+        if self.queue is not None:
+            ping_message = SysCommand_PingResponse()
+            ping_message.time = datetime.datetime.now(timezone.utc).timestamp()
+            serialized_bytes = ClientThread.serialize_command("__ping_response", ping_message)
+            self.queue.put(serialized_bytes)
+
     def start_sender(self, conn, halt_event):
         sender_thread = threading.Thread(
             target=self.sender_loop, args=(conn, self.sender_id, halt_event)
@@ -207,6 +217,11 @@ class SysCommand_TopicsResponse:
     def __init__(self):
         self.topics = []
         self.types = []
+
+
+class SysCommand_PingResponse:
+    def __init__(self):
+        self.time = 0
 
 
 class SysCommand_Handshake:

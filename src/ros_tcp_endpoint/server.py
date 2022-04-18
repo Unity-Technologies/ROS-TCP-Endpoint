@@ -252,6 +252,9 @@ class SysCommands:
     def topic_list(self):
         self.tcp_server.unity_tcp_sender.send_topic_list()
 
+    def ping(self):
+        self.tcp_server.unity_tcp_sender.send_ping()
+
     def resolve_message_name(self, name, extension="msg"):
         try:
             if len(name) < 1:
