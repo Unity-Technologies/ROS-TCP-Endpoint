@@ -1,20 +1,96 @@
-#  Copyright 2020 Unity Technologies
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-
+import genpy
 import rospy
 import re
+
+import traceback
+from rospy import ROSSerializationException, ROSException, TransportTerminated
+
 from .communication import RosSender
+
+
+def publish_no_serialize(self, raw_data):
+    if self.closed:
+        # during shutdown, the topic can get closed, which creates
+        # a race condition with user code testing is_shutdown
+        if not rospy.topics.is_shutdown():
+            raise ROSException("publish() to a closed topic")
+        else:
+            return
+
+    if self.is_latch:
+        self.latch = raw_data
+
+    if not self.has_connections():
+        # publish() falls through
+        return False
+
+    conns = self.connections
+
+    # #2128 test our buffer. I don't know how this got closed in
+    # that case, but we can at least diagnose the problem.
+    b = self.buff
+
+    try:
+        b.tell()
+
+        # IMPORTANT: TCP-Connector needs to increment the seq value now, or we need to find the byte in our buffer
+        #            and manually add one
+        # self.seq += 1  # count messages published to the topic
+
+        b.write(raw_data)
+
+        # send the buffer to all connections
+        err_con = []
+        data = b.getvalue()
+
+        for c in conns:
+            try:
+                if not rospy.topics.is_shutdown():
+                    c.write_data(data)
+            except TransportTerminated as e:
+                rospy.core.logdebug(
+                    "publisher connection to [%s] terminated, see errorlog for details:\n%s"
+                    % (c.endpoint_id, traceback.format_exc())
+                )
+                err_con.append(c)
+            except Exception as e:
+                # greater severity level
+                rospy.core.logdebug(
+                    "publisher connection to [%s] terminated, see errorlog for details:\n%s"
+                    % (c.endpoint_id, traceback.format_exc())
+                )
+                err_con.append(c)
+
+        # reset the buffer and update stats
+        self.message_data_sent += b.tell()  # STATS
+        b.seek(0)
+        b.truncate(0)
+
+    except ValueError:
+        # operations on self.buff can fail if topic is closed
+        # during publish, which often happens during Ctrl-C.
+        # diagnose the error and report accordingly.
+        if self.closed:
+            if rospy.topics.is_shutdown():
+                # we offer no guarantees on publishes that occur
+                # during shutdown, so this is not exceptional.
+                return
+            else:
+                # this indicates that user-level code most likely
+                # closed the topic, which is exceptional.
+                raise ROSException("topic was closed during publish()")
+        else:
+            # unexpected, so re-raise original error
+            raise
+
+    # remove any bad connections
+    for c in err_con:
+        try:
+            # connection will callback into remove_connection when
+            # we close it
+            c.close()
+        except:
+            pass
 
 
 class RosPublisher(RosSender):
@@ -48,10 +124,15 @@ class RosPublisher(RosSender):
         Returns:
             None: Explicitly return None so behaviour can be
         """
-        self.msg.deserialize(data)
-        self.pub.publish(self.msg)
-
-        return None
+        try:
+            self.pub.impl.acquire()
+            publish_no_serialize(self.pub.impl, data)
+        except genpy.SerializationError as e:
+            # can't go to rospy.logerr(), b/c this could potentially recurse
+            rospy.topics._logger.error(traceback.format_exc())
+            raise ROSSerializationException(str(e))
+        finally:
+            self.pub.impl.release()
 
     def unregister(self):
         """
