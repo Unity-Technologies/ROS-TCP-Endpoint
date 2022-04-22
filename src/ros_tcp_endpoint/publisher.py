@@ -1,3 +1,17 @@
+#  Copyright 2020 Unity Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import genpy
 import rospy
 import re
@@ -8,6 +22,8 @@ from rospy import ROSSerializationException, ROSException, TransportTerminated
 from .communication import RosSender
 
 
+# Modified version of rospy's internal publish call which skips serialization
+# and writes the incoming data straight to the publisher's buffer
 def publish_no_serialize(self, raw_data):
     if self.closed:
         # during shutdown, the topic can get closed, which creates
