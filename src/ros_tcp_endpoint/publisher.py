@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import struct
 
 import genpy
 import rospy
@@ -47,13 +48,19 @@ def publish_no_serialize(self, raw_data):
     b = self.buff
 
     try:
-        b.tell()
+        start = b.tell()
+        b.seek(start + 4)
 
-        # IMPORTANT: TCP-Connector needs to increment the seq value now, or we need to find the byte in our buffer
-        #            and manually add one
-        # self.seq += 1  # count messages published to the topic
+        # IMPORTANT: TCP-Connector needs to increment the seq value now, or we need to figure out
+        #            where the bytes for this live and explicitly pack this value...
+        self.seq += 1  # count messages published to the topic
 
         b.write(raw_data)
+        end = b.tell()
+        size = end - 4 - start
+        b.seek(start)
+        b.write(struct.pack('<I', size))
+        b.seek(end)
 
         # send the buffer to all connections
         err_con = []
