@@ -5,3 +5,5 @@
 build
 devel
 .vscode/
+.coverage
+test-results/
