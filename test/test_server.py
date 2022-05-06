@@ -49,7 +49,7 @@ def test_unity_service_resolve_news_service(mock_resolve_message, mock_ros_servi
     assert server.ros_services_table == {}
     system_cmds = SysCommands(server)
     result = system_cmds.unity_service("get_pos", "unity_interfaces.msg/RosUnitySrvMessage")
-    mock_ros_service.assert_called_once
+    mock_ros_service.assert_called_once()
     assert result is None
 
 
@@ -62,7 +62,7 @@ def test_unity_service_resolve_existing_service(mock_resolve_message, mock_ros_s
     server.ros_services = {"get_pos": mock.Mock()}
     system_cmds = SysCommands(server)
     result = system_cmds.unity_service("get_pos", "unity_interfaces.msg/RosUnitySrvMessage")
-    mock_ros_service.assert_called_once
+    mock_ros_service.assert_called_once()
     assert result is None
 
 
@@ -72,8 +72,8 @@ def test_resolve_message_name(mock_import_module, mock_sys_modules):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     msg_name = "unity_interfaces.msg/UnityColor.msg"
     result = SysCommands(server).resolve_message_name(msg_name)
-    mock_import_module.assert_called_once
-    mock_sys_modules.assert_called_once
+    mock_import_module.assert_called_once()
+    mock_sys_modules.__getitem__.assert_called_once()
     assert result is not None
 
 
@@ -82,7 +82,7 @@ def test_publish_add_new_topic(mock_ros_publisher):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
     assert server.publishers_table != {}
-    mock_ros_publisher.assert_called_once
+    mock_ros_publisher.assert_called_once()
 
 
 @mock.patch.object(rospy, "Publisher")
@@ -91,7 +91,7 @@ def test_publish_existing_topic(mock_ros_publisher):
     server.publishers_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).publish("object_pos_topic", "std_msgs/Bool")
     assert server.publishers_table["object_pos_topic"] is not None
-    mock_ros_publisher.assert_called_once
+    mock_ros_publisher.assert_called_once()
 
 
 def test_publish_empty_topic_should_return_none():
@@ -114,7 +114,7 @@ def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).subscribe("object_pos_topic", "pos")
     assert server.subscribers_table != {}
-    mock_ros_subscriber.assert_called_once
+    mock_ros_subscriber.assert_called_once()
 
 
 @mock.patch.object(rospy, "Subscriber")
@@ -124,7 +124,7 @@ def test_subscribe_to_existing_topic(mock_resolve_msg, mock_ros_subscriber):
     server.subscribers_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).subscribe("object_pos_topic", "pos")
     assert server.subscribers_table["object_pos_topic"] is not None
-    mock_ros_subscriber.assert_called_once
+    mock_ros_subscriber.assert_called_once()
 
 
 def test_subscribe_to_empty_topic_should_return_none():
@@ -147,7 +147,7 @@ def test_ros_service_new_topic(mock_resolve_msg, mock_ros_service):
     server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000)
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
     assert server.ros_services_table != {}
-    mock_ros_service.assert_called_once
+    mock_ros_service.assert_called_once()
 
 
 @mock.patch.object(rospy, "ServiceProxy")
@@ -157,7 +157,7 @@ def test_ros_service_existing_topic(mock_resolve_msg, mock_ros_service):
     server.ros_services_table = {"object_pos_topic": mock.Mock()}
     result = SysCommands(server).ros_service("object_pos_topic", "pos")
     assert server.ros_services_table["object_pos_topic"] is not None
-    mock_ros_service.assert_called_once
+    mock_ros_service.assert_called_once()
 
 
 def test_ros_service_empty_topic_should_return_none():

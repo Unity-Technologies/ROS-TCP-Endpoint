@@ -26,7 +26,7 @@ def test_recvall_should_read_bytes_exact_size():
 def test_read_int32_should_parse_int(mock_recvall):
     mock_conn = mock.Mock()
     result = ClientThread.read_int32(mock_conn)
-    mock_recvall.assert_called_once
+    mock_recvall.assert_called_once()
     assert result == 1
 
 
@@ -35,8 +35,8 @@ def test_read_int32_should_parse_int(mock_recvall):
 def test_read_string_should_decode(mock_recvall, mock_read_int):
     mock_conn = mock.Mock()
     result = ClientThread.read_string(mock_conn)
-    mock_recvall.assert_called_once
-    mock_read_int.assert_called_once
+    mock_recvall.assert_called_once()
+    mock_read_int.assert_called_once()
     assert result == "Hello world!"
 
 
