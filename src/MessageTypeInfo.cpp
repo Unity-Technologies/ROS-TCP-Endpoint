@@ -20,7 +20,7 @@ MessageTypeInfo* MessageTypeInfo::Get(std::string messageName, std::string comma
     // Launch a python instance to get message type info.
     // Awkward and slow, but it only happens once per message type we want to publish
     std::stringstream ss;
-    ss << "rosrun roscpp_endpoint " << commandName << " " << messageName;
+    ss << "rosrun ros_tcp_endpoint " << commandName << " " << messageName;
     FILE* fp = popen(ss.str().c_str(), "r");
     if(fp == nullptr)
     {

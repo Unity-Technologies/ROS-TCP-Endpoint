@@ -26,7 +26,8 @@ add_executable(endpoint
     src/MessageTypeInfo.cpp
     src/ConnectionThread.cpp
     src/ServerThread.cpp
-    src/ServiceClientThread.cpp)
+    src/ServiceClientThread.cpp
+    src/UnityServiceThread.cpp)
 target_link_libraries(endpoint ${catkin_LIBRARIES})
 
 
