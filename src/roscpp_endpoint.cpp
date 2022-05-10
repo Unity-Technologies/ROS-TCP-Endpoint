@@ -12,13 +12,6 @@ SafeQueue<PendingNetworkWrite> networkWriteQueue;
 
 int main(int argc, char **argv)
 {
-    SafeQueue<std::vector<char>> testQueue;
-    std::vector<char> testVec;
-    testVec.push_back('x');
-        printf("Original at %p\n", &testVec[0]);
-    testQueue.enqueue(testVec);
-    std::vector<char> testResult = testQueue.awaitDequeue();
-    printf("Original at %p, result at %p\n", &testVec[0], &testResult[0]);
 /*    MessageTypeInfo::Preregister<std_msgs::String>("std_msgs/String");
     MessageTypeInfo::Preregister<sensor_msgs::Imu>("sensor_msgs/Imu");
     MessageTypeInfo::Preregister<geometry_msgs::Vector3>("geometry_msgs/Vector3");

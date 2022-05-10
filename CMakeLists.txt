@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(roscpp_endpoint)
+project(ros_tcp_endpoint)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -8,19 +8,26 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_python_setup()
 
+catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES ros_tcp_endpoint
+#  CATKIN_DEPENDS roscpp rospy std_msgs
+#  DEPENDS system_lib
+)
+
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(roscpp_endpoint
+add_executable(endpoint
     src/roscpp_endpoint.cpp
     src/EndpointShapeShifter.cpp
     src/MessageTypeInfo.cpp
     src/ConnectionThread.cpp
     src/ServerThread.cpp
     src/ServiceClientThread.cpp)
-target_link_libraries(roscpp_endpoint ${catkin_LIBRARIES})
+target_link_libraries(endpoint ${catkin_LIBRARIES})
 
 
 catkin_install_python(

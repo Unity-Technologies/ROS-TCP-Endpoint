@@ -2,7 +2,7 @@
     <arg name="tcp_ip" default="0.0.0.0"/>
     <arg name="tcp_port" default="10000"/>
 
-    <node name="unity_endpoint" pkg="roscpp_endpoint" type="roscpp_endpoint" output="screen">
+    <node name="unity_endpoint" pkg="ros_tcp_endpoint" type="endpoint" output="screen">
         <param name="tcp_ip" type="string" value="$(arg tcp_ip)"/>
         <param name="tcp_port" type="int" value="$(arg tcp_port)"/>
     </node>
