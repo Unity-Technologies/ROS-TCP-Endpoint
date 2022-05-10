@@ -280,7 +280,7 @@ void* ConnectionThread(void* args_in)
                     auto it = serviceClientsTable.find(topicName);
                     if(it != serviceClientsTable.end())
                     {
-                        std::cout << "Handling service request " << topicName << std::endl;
+                        //std::cout << "Handling service request " << topicName << std::endl;
                         it->second->requests.enqueue(ServiceClientRequest(requestSrvId, std::move(requestBuffer)));
                     }
                     else
@@ -313,7 +313,7 @@ void* ConnectionThread(void* args_in)
                     auto it = unityServicesTable.find(topicName);
                     if(it != unityServicesTable.end())
                     {
-                        std::cout << "Handling service response " << topicName << std::endl;
+                        //std::cout << "Handling service response " << topicName << std::endl;
                         it->second->responses.enqueue(UnityServiceResponse(responseSrvId, std::move(responseBuffer)));
                     }
                     else

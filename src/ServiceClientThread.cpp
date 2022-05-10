@@ -7,7 +7,7 @@
 void* ServiceClientThread(void* args_in)
 {
     ServiceClientThreadArgs* args = (ServiceClientThreadArgs*) args_in;
-    std::cout << "Started service thread " << args->topicName << std::endl;
+    std::cout << "Started service call thread " << args->topicName << std::endl;
 
     ros::NodeHandle nh;
     ros::ServiceClientOptions options(
@@ -44,7 +44,7 @@ void* ServiceClientThread(void* args_in)
             SendToUnity(args->connfd, std::move(responseBuffer));
         }
     }
-    std::cout << "Ending service client thread " << args->topicName << std::endl;
+    std::cout << "Ending service call thread " << args->topicName << std::endl;
     delete args;
     return nullptr;
 }

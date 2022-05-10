@@ -7,6 +7,9 @@
 void* UnityServiceThread(void* args_in)
 {
     UnityServiceThreadArgs* args = (UnityServiceThreadArgs*)args_in;
+
+    std::cout << "Started unity service thread " << args->topicName << std::endl;
+
     ros::NodeHandle nh;
     ros::CallbackQueue cbQueue;
     ros::AdvertiseServiceOptions options;
