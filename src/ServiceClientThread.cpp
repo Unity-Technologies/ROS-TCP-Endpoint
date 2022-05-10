@@ -7,7 +7,7 @@
 void* ServiceClientThread(void* args_in)
 {
     ServiceClientThreadArgs* args = (ServiceClientThreadArgs*) args_in;
-    std::cout << "Started service thread " << args->topicName << std::endl;
+    std::cout << "Started service call thread " << args->topicName << std::endl;
 
     ros::NodeHandle nh;
     ros::ServiceClientOptions options(
@@ -28,20 +28,23 @@ void* ServiceClientThread(void* args_in)
 
     while(ros::ok() && !args->shouldHalt)
     {
-        ServiceClientRequest request = args->requests.awaitDequeue();
+        ServiceClientRequest request;
+        if(args->requests.tryAwaitDequeue(&request))
+        {
+            ros::serialization::OStream stream( request.message.data(), request.message.size() );
+            requestShapeShifter.read(stream);
+            client.call(requestShapeShifter, responseShapeShifter);
 
-        ros::serialization::OStream stream( request.message.data(), request.message.size() );
-        requestShapeShifter.read(stream);
-        client.call(requestShapeShifter, responseShapeShifter);
-
-        // compose the response syscommand and response message into a single buffer
-        responseBuffer.clear();
-        SerializeWithLength("__response", responseBuffer);
-        SerializeWithLength(request.srvId, responseBuffer);
-        SerializeWithLength(args->topicName, responseBuffer);
-        SerializeWithLength(responseShapeShifter.get_buffer(), responseShapeShifter.size(), responseBuffer);
-        SendToUnity(args->connfd, std::move(responseBuffer));
+            // compose the response syscommand and response message into a single buffer
+            responseBuffer.clear();
+            SerializeWithLength("__response", responseBuffer);
+            SerializeWithLength(request.srvId, responseBuffer);
+            SerializeWithLength(args->topicName, responseBuffer);
+            SerializeWithLength(responseShapeShifter.get_buffer(), responseShapeShifter.size(), responseBuffer);
+            SendToUnity(args->connfd, std::move(responseBuffer));
+        }
     }
+    std::cout << "Ending service call thread " << args->topicName << std::endl;
     delete args;
     return nullptr;
 }

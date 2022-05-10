@@ -1,4 +1,7 @@
 #include "ros/ros.h"
+#include "ros/service_traits.h"
+#include "ros/message_traits.h"
+#include "std_srvs/SetBool.h"
 
 #include <arpa/inet.h>
 #include <sys/socket.h>

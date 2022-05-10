@@ -9,6 +9,7 @@
 #include "../include/MessageTypeInfo.h"
 #include "../include/ConnectionThread.h"
 #include "../include/ServiceClientThread.h"
+#include "../include/UnityServiceThread.h"
 
 // caller guarantees write_buffer can actually hold bytes_remaining
 bool read_bytes(int connfd, uint8_t* write_buffer, uint bytes_remaining)
@@ -43,6 +44,7 @@ void* ConnectionThread(void* args_in)
     std::map<std::string, ros::Publisher> publishersTable;
     std::map<std::string, ros::Subscriber> subscribersTable;
     std::map<std::string, ServiceClientThreadArgs*> serviceClientsTable;
+    std::map<std::string, UnityServiceThreadArgs*> unityServicesTable;
 
     int connfd = args->connfd;
     std::string threadName = args->name;
@@ -220,6 +222,39 @@ void* ConnectionThread(void* args_in)
                     pthread_t connectionThread;
                     pthread_create(&connectionThread, NULL, ServiceClientThread, threadArgs);
                     serviceClientsTable.insert({topicName, threadArgs});
+
+                    break;
+                }
+
+                case "__unity_service"_hash:
+                {
+                    nlohmann::json j = nlohmann::json::parse((char*)command_buff);
+
+                    std::string topicName = j["topic"].get<std::string>();
+                    std::string messageName = j["message_name"].get<std::string>();
+
+                    if(unityServicesTable.find(topicName) != unityServicesTable.end())
+                    {
+                        std::cout << threadName << ": WARNING: Ignoring duplicate service implementation for " << topicName << std::endl;
+                        break;
+                    }
+
+                    MessageTypeInfo* info = MessageTypeInfo::GetService(messageName);
+                    if(info == nullptr)
+                    {
+                        std::cout << threadName << ": ERROR: Can't implement service " << topicName << " - unknown service type " << messageName << std::endl;
+                        break;
+                    }
+                    UnityServiceThreadArgs* threadArgs = new UnityServiceThreadArgs();
+                    threadArgs->connfd = connfd;
+                    threadArgs->shouldHalt = false;
+                    threadArgs->topicName = topicName;
+                    threadArgs->md5sum = info->md5sum;
+                    threadArgs->serviceMessageName = messageName;
+                    pthread_t connectionThread;
+                    pthread_create(&connectionThread, NULL, UnityServiceThread, threadArgs);
+                    unityServicesTable.insert({topicName, threadArgs});
+
                     break;
                 }
 
@@ -232,6 +267,9 @@ void* ConnectionThread(void* args_in)
                     if(!read_bytes(connfd, name_buff, namesize))
                         break;
                     name_buff[namesize] = 0;//null terminate
+
+                    std::string topicName((char*)name_buff);
+
                     if (!read_bytes(connfd, (uint8_t*)&msgsize, 4))
                         break;
                     std::vector<uint8_t> requestBuffer;
@@ -239,18 +277,49 @@ void* ConnectionThread(void* args_in)
                     if (!read_bytes(connfd, requestBuffer.data(), msgsize))
                         break;
 
-                    std::string topicName((char*)name_buff);
-                    auto it = serviceClientsTable.find(std::string((char*)name_buff));
+                    auto it = serviceClientsTable.find(topicName);
                     if(it != serviceClientsTable.end())
                     {
-                        std::cout << "Handling service request " << (char*)name_buff << std::endl;
+                        //std::cout << "Handling service request " << topicName << std::endl;
                         it->second->requests.enqueue(ServiceClientRequest(requestSrvId, std::move(requestBuffer)));
                     }
                     else
                     {
-                        std::cerr << "Unknown service request " << (char*)name_buff << std::endl;
+                        std::cerr << "Unknown service request " << topicName << std::endl;
                     }
 
+                    break;
+                }
+
+                case "__response"_hash:
+                {
+                    std::string responseSrvId((char*)command_buff); // save the command string
+
+                    if (!read_bytes(connfd, (uint8_t*)&namesize, 4))
+                        break;
+                    if(!read_bytes(connfd, name_buff, namesize))
+                        break;
+                    name_buff[namesize] = 0;//null terminate
+
+                    std::string topicName((char*)name_buff);
+
+                    if (!read_bytes(connfd, (uint8_t*)&msgsize, 4))
+                        break;
+                    std::vector<uint8_t> responseBuffer;
+                    responseBuffer.resize(msgsize);
+                    if (!read_bytes(connfd, responseBuffer.data(), msgsize))
+                        break;
+
+                    auto it = unityServicesTable.find(topicName);
+                    if(it != unityServicesTable.end())
+                    {
+                        //std::cout << "Handling service response " << topicName << std::endl;
+                        it->second->responses.enqueue(UnityServiceResponse(responseSrvId, std::move(responseBuffer)));
+                    }
+                    else
+                    {
+                        std::cerr << "Unknown service response " << topicName << std::endl;
+                    }
                     break;
                 }
 
@@ -280,6 +349,16 @@ void* ConnectionThread(void* args_in)
                 it->second.publish(shape_shifter);
             }
         }
+    }
+    for(auto it : serviceClientsTable)
+    {
+        it.second->shouldHalt = true;
+        it.second->requests.interruptWaiters();
+    }
+    for(auto it : unityServicesTable)
+    {
+        it.second->shouldHalt = true;
+        it.second->responses.interruptWaiters();
     }
     std::cout << threadName << ": hanging up" << std::endl;
     delete args;

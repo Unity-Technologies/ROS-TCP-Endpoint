@@ -7,6 +7,10 @@ struct ServiceClientRequest
     std::string srvId;
     std::vector<uint8_t> message;
 
+    ServiceClientRequest()
+    {
+    }
+
     ServiceClientRequest(std::string srvId, std::vector<uint8_t> message):
         srvId(srvId), message(message)
     {
