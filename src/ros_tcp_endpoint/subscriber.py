@@ -42,7 +42,7 @@ class RosSubscriber(RosReceiver):
         self.queue_size = queue_size
 
         # Start Subscriber listener function
-        self.sub = rospy.Subscriber(self.topic, self.msg, self.send)
+        self.sub = rospy.Subscriber(self.topic, self.msg, self.send, queue_size=queue_size)
 
     def send(self, data):
         """

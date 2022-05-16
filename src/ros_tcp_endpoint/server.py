@@ -135,7 +135,7 @@ class SysCommands:
     def __init__(self, tcp_server):
         self.tcp_server = tcp_server
 
-    def subscribe(self, topic, message_name):
+    def subscribe(self, topic, message_name, queue_size=10):
         if topic == "":
             self.tcp_server.send_unity_error(
                 "Can't subscribe to a blank topic name! SysCommand.subscribe({}, {})".format(
@@ -155,10 +155,10 @@ class SysCommands:
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 
-        new_subscriber = RosSubscriber(topic, message_class, self.tcp_server)
+        new_subscriber = RosSubscriber(topic, message_class, self.tcp_server, queue_size)
         self.tcp_server.subscribers_table[topic] = new_subscriber
 
-        self.tcp_server.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
+        self.tcp_server.loginfo("RegisterSubscriber({}, {}, queue {}) OK".format(topic, message_class, queue_size))
 
     def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
@@ -184,7 +184,11 @@ class SysCommands:
 
         self.tcp_server.publishers_table[topic] = new_publisher
 
-        self.tcp_server.loginfo("RegisterPublisher({}, {}) OK".format(topic, message_class))
+        if latch:
+            latched_text = "latched"
+        else:
+            latched_text = "unlatched"
+        self.tcp_server.loginfo("RegisterPublisher({}, {}, queue {}, {}) OK".format(topic, message_class, queue_size, latched_text))
 
     def ros_service(self, topic, message_name):
         if topic == "":
