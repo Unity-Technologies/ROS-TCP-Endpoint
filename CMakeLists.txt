@@ -3,10 +3,10 @@ project(ros_tcp_endpoint)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  rospy
+  #rospy
 )
 
-catkin_python_setup()
+#catkin_python_setup()
 
 catkin_package(
 #  INCLUDE_DIRS include
