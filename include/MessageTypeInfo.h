@@ -16,8 +16,8 @@ class MessageTypeInfo
     {
     }
 
-    static MessageTypeInfo* Get(std::string messageName) { return Get(messageName, "message_type_info.py"); }
-    static MessageTypeInfo* GetService(std::string messageName) { return Get(messageName, "service_type_info.py"); }
+    static MessageTypeInfo* Get(std::string messageName) { return Get(messageName, "rosmsg"); }
+    static MessageTypeInfo* GetService(std::string messageName) { return Get(messageName, "rossrv"); }
 
     template <typename T>
     static void Preregister(std::string name)

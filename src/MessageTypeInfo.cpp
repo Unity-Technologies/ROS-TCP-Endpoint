@@ -19,12 +19,11 @@ MessageTypeInfo* MessageTypeInfo::Get(std::string messageName, std::string comma
 
     // Launch a python instance to get message type info.
     // Awkward and slow, but it only happens once per message type we want to publish
-    std::stringstream ss;
-    ss << "rosrun ros_tcp_endpoint " << commandName << " " << messageName;
-    FILE* fp = popen(ss.str().c_str(), "r");
+    std::string md5Command = commandName + " md5 " + messageName;
+    FILE* fp = popen(md5Command.c_str(), "r");
     if(fp == nullptr)
     {
-        std::cerr << "Failed to run command '" << ss.str() << "'" << std::endl;
+        std::cerr << "Failed to run command '" << md5Command << "'" << std::endl;
         return nullptr;
     }
     char buffer[1000];
@@ -35,6 +34,23 @@ MessageTypeInfo* MessageTypeInfo::Get(std::string messageName, std::string comma
         md5sum.append(buffer);
         md5sum.erase(std::remove(md5sum.begin(), md5sum.end(), '\n'), md5sum.end());
     }
+
+    int returnCode = pclose(fp);
+    bool success = (WIFEXITED(returnCode) && WEXITSTATUS(returnCode) == 0);
+    if(!success)
+    {
+        messageTypesCache.insert({messageName, nullptr});
+        std::cerr << "Failed to load md5 for message '" << messageName << "'" << std::endl;
+        return nullptr;
+    }
+
+    std::string defCommand = commandName + " show " + messageName;
+    fp = popen(defCommand.c_str(), "r");
+    if(fp == nullptr)
+    {
+        std::cerr << "Failed to run command '" << defCommand << "'" << std::endl;
+        return nullptr;
+    }
     while(!feof(fp))
     {
         if(fgets(buffer, sizeof(buffer), fp) != nullptr)
@@ -42,8 +58,8 @@ MessageTypeInfo* MessageTypeInfo::Get(std::string messageName, std::string comma
             definition.append(buffer);
         }
     }
-    int returnCode = pclose(fp);
-    bool success = (WIFEXITED(returnCode) && WEXITSTATUS(returnCode) == 0);
+    returnCode = pclose(fp);
+    success = (WIFEXITED(returnCode) && WEXITSTATUS(returnCode) == 0);
 
     if(success)
     {
@@ -54,7 +70,7 @@ MessageTypeInfo* MessageTypeInfo::Get(std::string messageName, std::string comma
     else
     {
         messageTypesCache.insert({messageName, nullptr});
-        std::cerr << "Failed to load info for message '" << messageName << "'" << std::endl;
+        std::cerr << "Failed to load definition for message '" << messageName << "'" << std::endl;
         return nullptr;
     }
 }
