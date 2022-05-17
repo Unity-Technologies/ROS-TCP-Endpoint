@@ -31,10 +31,10 @@ add_executable(endpoint
 target_link_libraries(endpoint ${catkin_LIBRARIES})
 
 
-catkin_install_python(
-  PROGRAMS src/message_type_info.py src/service_type_info.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#catkin_install_python(
+#  PROGRAMS src/message_type_info.py src/service_type_info.py
+#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
