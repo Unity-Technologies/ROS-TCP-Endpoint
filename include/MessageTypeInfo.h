@@ -16,8 +16,8 @@ class MessageTypeInfo
     {
     }
 
-    static MessageTypeInfo* Get(std::string messageName) { return Get(messageName, "rosmsg"); }
-    static MessageTypeInfo* GetService(std::string messageName) { return Get(messageName, "rossrv"); }
+    static MessageTypeInfo* Get(std::string messageName) { return Get(messageName, false); }
+    static MessageTypeInfo* GetService(std::string messageName) { return Get(messageName, true); }
 
     template <typename T>
     static void Preregister(std::string name)
@@ -32,5 +32,5 @@ class MessageTypeInfo
     private:
     static std::map<std::string, MessageTypeInfo*> messageTypesCache;
 
-    static MessageTypeInfo* Get(std::string messageName, std::string commandName);
+    static MessageTypeInfo* Get(std::string messageName, bool isService);
 };

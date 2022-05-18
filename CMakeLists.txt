@@ -3,6 +3,7 @@ project(ros_tcp_endpoint)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  roslib
   #rospy
 )
 
