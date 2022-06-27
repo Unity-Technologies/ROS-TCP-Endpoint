@@ -7,11 +7,11 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     ros_ip = DeclareLaunchArgument(
-        "ROS_IP", default_value=TextSubstitution(text="0.0.0.0")
+        "tcp_ip", default_value=TextSubstitution(text="0.0.0.0")
     )
 
     ros_tcp_port = DeclareLaunchArgument(
-        "ROS_TCP_PORT", default_value="10000"
+        "tcp_port", default_value="10000"
     )
 
     return LaunchDescription(
@@ -23,8 +23,8 @@ def generate_launch_description():
                 executable="default_server_endpoint",
                 emulate_tty=True,
                 parameters=[{
-                    "ROS_IP": LaunchConfiguration('ROS_IP'),
-                    "ROS_TCP_PORT": LaunchConfiguration('ROS_TCP_PORT')
+                    "ROS_IP": LaunchConfiguration('tcp_ip'),
+                    "ROS_TCP_PORT": LaunchConfiguration('tcp_port')
                 }],
             )
         ]
