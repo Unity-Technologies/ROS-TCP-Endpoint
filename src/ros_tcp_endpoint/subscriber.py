@@ -54,7 +54,9 @@ class RosSubscriber(RosReceiver):
             self.msg: The deserialize message
 
         """
-        self.tcp_server.send_unity_message(self.topic, data)
+        # If Unity itself published this message, there's no need to send it back
+        if data._connection_header["callerid"] != self.tcp_server.node_name:
+            self.tcp_server.send_unity_message(self.topic, data)
         return self.msg
 
     def unregister(self):
