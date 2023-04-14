@@ -160,6 +160,12 @@ class SysCommands:
 
         self.tcp_server.loginfo("RegisterSubscriber({}, {}) OK".format(topic, message_class))
 
+    def remove_subscriber(self, topic):
+        node = self.tcp_server.subscribers_table.get(topic)
+        if node is not None:
+            self.tcp_server.unregister_node(node)
+        self.tcp_server.subscribers_table.pop(topic)
+
     def publish(self, topic, message_name, queue_size=10, latch=False):
         if topic == "":
             self.tcp_server.send_unity_error(
