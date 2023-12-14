@@ -108,6 +108,36 @@ def test_publish_empty_message_should_return_none():
     assert server.publishers_table == {}
 
 
+def test_publish_topic_not_on_whitelist_should_return_none():
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_whitelist="whitelisted_topic")
+    result = SysCommands(server).publish("non_whitelisted_topic", "pos")
+    assert result is None
+    assert server.publishers_table == {}
+
+
+@mock.patch.object(rospy, "Publisher")
+def test_publish_topic_on_whitelist(mock_ros_publisher):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_whitelist="whitelisted_topic")
+    result = SysCommands(server).publish("whitelisted_topic", "std_msgs/Bool")
+    assert server.publishers_table != {}
+    mock_ros_publisher.assert_called_once
+
+
+def test_publish_topic_on_blacklist_should_return_none():
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_blacklist="blacklisted_topic")
+    result = SysCommands(server).publish("blacklisted_topic", "pos")
+    assert result is None
+    assert server.publishers_table == {}
+
+
+@mock.patch.object(rospy, "Publisher")
+def test_publish_topic_not_on_blacklist(mock_ros_publisher):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_blacklist="blacklisted_topic")
+    result = SysCommands(server).publish("non_blacklisted_topic", "std_msgs/Bool")
+    assert server.publishers_table != {}
+    mock_ros_publisher.assert_called_once
+
+
 @mock.patch.object(rospy, "Subscriber")
 @mock.patch.object(SysCommands, "resolve_message_name", return_value="unity_interfaces.msg/Pos")
 def test_subscribe_to_new_topic(mock_resolve_msg, mock_ros_subscriber):
@@ -139,6 +169,36 @@ def test_subscribe_to_empty_message_should_return_none():
     result = SysCommands(server).subscribe("test-topic", "")
     assert result is None
     assert server.subscribers_table == {}
+
+
+def test_subscribe_to_topic_not_on_whitelist_should_return_none():
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_whitelist="whitelisted_topic")
+    result = SysCommands(server).subscribe("non_whitelisted_topic", "pos")
+    assert result is None
+    assert server.publishers_table == {}
+
+
+@mock.patch.object(rospy, "Subscriber")
+def test_subscribe_to_topic_on_whitelist(mock_resolve_msg, mock_ros_subscriber):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_whitelist="whitelisted_topic")
+    result = SysCommands(server).subscribe("whitelisted_topic", "std_msgs/Bool")
+    assert server.subscribers_table != {}
+    mock_ros_subscriber.assert_called_once
+
+
+def test_subscribe_to_topic_on_blacklist_should_return_none():
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_blacklist="blacklisted_topic")
+    result = SysCommands(server).subscribe("blacklisted_topic", "pos")
+    assert result is None
+    assert server.subscribers_table == {}
+    
+
+@mock.patch.object(rospy, "Subscriber")
+def test_subscribe_to_topic_not_on_blacklist(mock_resolve_msg, mock_ros_subscriber):
+    server = TcpServer(node_name="test-tcp-server", tcp_ip="127.0.0.1", tcp_port=10000, topic_blacklist="blacklisted_topic")
+    result = SysCommands(server).subscribe("non_blacklisted_topic", "std_msgs/Bool")
+    assert server.subscribers_table != {}
+    mock_ros_subscriber.assert_called_once
 
 
 @mock.patch.object(rospy, "ServiceProxy")

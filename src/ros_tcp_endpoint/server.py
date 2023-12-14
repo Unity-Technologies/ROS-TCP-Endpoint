@@ -33,7 +33,7 @@ class TcpServer:
     Initializes ROS node and TCP server.
     """
 
-    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip=None, tcp_port=None):
+    def __init__(self, node_name, buffer_size=1024, connections=10, tcp_ip=None, tcp_port=None, topic_whitelist=None, topic_blacklist=None):
         """
         Initializes ROS node and class variables.
 
@@ -53,6 +53,18 @@ class TcpServer:
             self.tcp_port = tcp_port
         else:
             self.tcp_port = rospy.get_param("~tcp_port", 10000)
+
+        if topic_whitelist:
+            self.loginfo("using 'topic_whitelist' override from constructor: {}".format(topic_whitelist))
+            self.topic_whitelist = topic_whitelist.split(",")
+        else:
+            self.topic_whitelist = rospy.get_param("~topic_whitelist", [])
+
+        if topic_blacklist:
+            self.loginfo("using 'topic_blacklist' override from constructor: {}".format(topic_blacklist))
+            self.topic_blacklist = topic_blacklist.split(",")
+        else:
+            self.topic_blacklist = rospy.get_name("~topic_blacklist", [])
 
         self.unity_tcp_sender = UnityTcpSender(self)
 
@@ -143,6 +155,22 @@ class SysCommands:
                 )
             )
             return
+        
+        if self.tcp_server.topic_whitelist != [] and not topic in self.tcp_server.topic_whitelist:
+            self.tcp_server.send_unity_error(
+                "Cannot subscribe to a topic that isn't a part of the include list! SysCommand.subscribe({}, {})".format(
+                    topic, message_name
+                )
+            )
+            return
+        
+        if self.tcp_server.topic_blacklist != [] and topic in self.tcp_server.topic_blacklist:
+            self.tcp_server.send_unity_error(
+                "Cannot subscribe to a topic that's a part of the exclude list! SysCommand.subscribe({}, {}})".format(
+                    topic, message_name
+                )
+            )
+            return
 
         message_class = self.resolve_message_name(message_name)
         if message_class is None:
@@ -164,6 +192,22 @@ class SysCommands:
         if topic == "":
             self.tcp_server.send_unity_error(
                 "Can't publish to a blank topic name! SysCommand.publish({}, {})".format(
+                    topic, message_name
+                )
+            )
+            return
+        
+        if self.tcp_server.topic_whitelist != [] and not topic in self.tcp_server.topic_whitelist:
+            self.tcp_server.send_unity_error(
+                "Cannot publish to a topic that isn't a part of the include list! SysCommand.subscribe({}, {})".format(
+                    topic, message_name
+                )
+            )
+            return
+        
+        if self.tcp_server.topic_blacklist != [] and topic in self.tcp_server.topic_blacklist:
+            self.tcp_server.send_unity_error(
+                "Cannot publish to a topic that's a part of the exclude list! SysCommand.subscribe({}, {}})".format(
                     topic, message_name
                 )
             )
