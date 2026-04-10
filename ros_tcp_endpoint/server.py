@@ -30,6 +30,8 @@ from .subscriber import RosSubscriber
 from .publisher import RosPublisher
 from .service import RosService
 from .unity_service import UnityService
+from .action_client import RosActionClient
+from .action_server import RosActionServer
 
 
 class TcpServer(Node):
@@ -70,6 +72,11 @@ class TcpServer(Node):
         self.subscribers_table = {}
         self.ros_services_table = {}
         self.unity_services_table = {}
+        self.action_clients_table = {}
+        self.action_servers_table = {}
+        self.pending_action_op = None
+        self.pending_action_name = None
+        self.pending_action_goal_uuid = None
         self.buffer_size = buffer_size
         self.connections = connections
         self.syscommands = SysCommands(self)
@@ -306,6 +313,111 @@ class SysCommands:
 
         self.tcp_server.loginfo("RegisterUnityService({}, {}) OK".format(topic, message_class))
 
+    def action_client(self, action_name, action_type):
+        """Register a RosActionClient that bridges to a real ROS2 action
+        server.  Unlike ``ros_service``, this creates an
+        ``rclpy.action.ActionClient`` which can discover DDS action
+        endpoints that plain ``create_client()`` cannot see.
+
+        The client sends ``__action_client {action_name, action_type}``
+        once, then uses ``__action_send_goal``, ``__action_get_result``,
+        and ``__action_cancel_goal`` to interact with the server.
+        """
+        if action_name == "":
+            self.tcp_server.send_unity_error(
+                "RegisterActionClient - blank action name!")
+            return
+
+        # Resolve the Action class (e.g. example_interfaces.action.Fibonacci).
+        action_class = self.resolve_message_name(action_type, "action")
+        if action_class is None:
+            self.tcp_server.send_unity_error(
+                "RegisterActionClient({}, {}) - Unknown action class '{}'".format(
+                    action_name, action_type, action_type))
+            return
+
+        old_node = self.tcp_server.action_clients_table.get(action_name)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
+
+        new_client = RosActionClient(action_name, action_class,
+                                     self.tcp_server.unity_tcp_sender)
+        self.tcp_server.action_clients_table[action_name] = new_client
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_client)
+
+        self.tcp_server.loginfo(
+            "RegisterActionClient({}, {}) OK".format(action_name, action_class))
+
+    def action_send_goal(self, action_name, srv_id):
+        """The next frame carries the CDR-serialized Goal body.  We set
+        pending_srv_id so the client thread routes the next payload to
+        our action_client.send_goal, and sends the response back via
+        the normal __response{srv_id} mechanism.
+        """
+        self.tcp_server.pending_srv_id = srv_id
+        self.tcp_server.pending_srv_is_request = True
+        self.tcp_server.pending_action_name = action_name
+        self.tcp_server.pending_action_op = "send_goal"
+
+    def action_get_result(self, action_name, srv_id):
+        """The next frame carries GetResult_Request (just a UUID)."""
+        self.tcp_server.pending_srv_id = srv_id
+        self.tcp_server.pending_srv_is_request = True
+        self.tcp_server.pending_action_name = action_name
+        self.tcp_server.pending_action_op = "get_result"
+
+    def action_cancel_goal(self, action_name, srv_id):
+        """The next frame carries CancelGoal_Request."""
+        self.tcp_server.pending_srv_id = srv_id
+        self.tcp_server.pending_srv_is_request = True
+        self.tcp_server.pending_action_name = action_name
+        self.tcp_server.pending_action_op = "cancel_goal"
+
+    def action_server(self, action_name, action_type):
+        """Register a RosActionServer so the client can implement an action.
+
+        When a ROS 2 action client sends a goal, the endpoint forwards
+        it to the client as a __request/__response pair. The client processes the
+        goal and sends feedback via __action_publish_feedback and the
+        result via __response.
+        """
+        if action_name == "":
+            self.tcp_server.send_unity_error(
+                "RegisterActionServer - blank action name!")
+            return
+
+        action_class = self.resolve_message_name(action_type, "action")
+        if action_class is None:
+            self.tcp_server.send_unity_error(
+                "RegisterActionServer({}, {}) - Unknown action class".format(
+                    action_name, action_type))
+            return
+
+        old_node = self.tcp_server.action_servers_table.get(action_name)
+        if old_node is not None:
+            self.tcp_server.unregister_node(old_node)
+
+        new_server = RosActionServer(action_name, action_class,
+                                     self.tcp_server)
+        self.tcp_server.action_servers_table[action_name] = new_server
+        if self.tcp_server.executor is not None:
+            self.tcp_server.executor.add_node(new_server)
+
+        self.tcp_server.loginfo(
+            "RegisterActionServer({}, {}) OK".format(action_name, action_class))
+
+    def action_publish_feedback(self, action_name, goal_uuid_hex):
+        """The next frame carries CDR-serialized Feedback body.
+
+        We set pending state so the client thread routes the next
+        payload to the matching RosActionServer.publish_feedback().
+        """
+        self.tcp_server.pending_srv_id = None  # not a srv_id response
+        self.tcp_server.pending_action_name = action_name
+        self.tcp_server.pending_action_op = "publish_feedback"
+        self.tcp_server.pending_action_goal_uuid = goal_uuid_hex
+
     def response(self, srv_id):  # the next message is a service response
         self.tcp_server.pending_srv_id = srv_id
         self.tcp_server.pending_srv_is_request = False
@@ -318,6 +430,49 @@ class SysCommands:
         self.tcp_server.unity_tcp_sender.send_topic_list()
 
     def resolve_message_name(self, name, extension="msg"):
+        """Resolve a ROS message/service/action class by name.
+
+        Tries the given extension first (e.g. "msg" or "srv"), then
+        falls back to "action" if the primary lookup fails. This lets
+        clients register Action-generated types (e.g.
+        ``Fibonacci_SendGoal``) via the normal ``__ros_service`` /
+        ``__subscribe`` syscommands without any protocol changes.
+
+        Also handles 3-segment names like
+        ``package/action/ClassName`` (which __topic_list may report)
+        by extracting the middle segment as the extension.
+        """
+        # Handle 3-segment names: "pkg/msg/Type" or "pkg/action/Type"
+        parts = name.split("/")
+        if len(parts) == 3 and parts[1] in ("msg", "srv", "action"):
+            name = parts[0] + "/" + parts[2]
+            extension = parts[1]
+
+        result = self._try_resolve_message_name(name, extension)
+        if result is None and extension != "action":
+            result = self._try_resolve_message_name(name, "action")
+        if result is None:
+            self.tcp_server.logerr(
+                "Failed to resolve message name '{}' in extensions '{}' and 'action'".format(
+                    name, extension
+                )
+            )
+        return result
+
+    def _try_resolve_message_name(self, name, extension):
+        """Attempt to import *name* from the *extension* sub-module.
+
+        Returns the class on success, or ``None`` on any failure
+        (without logging — the caller decides whether to report).
+
+        For the ``"action"`` extension, rclpy exposes Action sub-types
+        as nested classes rather than flat module attributes.  For
+        example, ``example_interfaces/Fibonacci_SendGoal_Request`` maps
+        to ``example_interfaces.action.Fibonacci.Impl.SendGoalService.Request``.
+        This method handles the translation automatically so that
+        clients can use the flat ``Package/Action_Suffix`` naming
+        convention over the wire.
+        """
         try:
             names = name.split("/")
             module_name = names[0]
@@ -325,18 +480,85 @@ class SysCommands:
             importlib.import_module(module_name + "." + extension)
             module = sys.modules[module_name]
             if module is None:
-                self.tcp_server.logerr("Failed to resolve module {}".format(module_name))
-            module = getattr(module, extension)
+                return None
+            module = getattr(module, extension, None)
             if module is None:
-                self.tcp_server.logerr(
-                    "Failed to resolve module {}.{}".format(module_name, extension)
-                )
-            module = getattr(module, class_name)
-            if module is None:
-                self.tcp_server.logerr(
-                    "Failed to resolve module {}.{}.{}".format(module_name, extension, class_name)
-                )
-            return module
-        except (IndexError, KeyError, AttributeError, ImportError) as e:
-            self.tcp_server.logerr("Failed to resolve message name: {}".format(e))
+                return None
+
+            # For msg/srv the class sits directly on the sub-module.
+            cls = getattr(module, class_name, None)
+            if cls is not None:
+                return cls
+
+            # For action types, try the nested-class lookup.
+            if extension == "action":
+                cls = self._try_resolve_action_class(module, class_name)
+            return cls
+        except (IndexError, KeyError, AttributeError, ImportError):
+            return None
+
+    @staticmethod
+    def _try_resolve_action_class(action_module, class_name):
+        """Resolve an Action sub-type from its flat wire name.
+
+        rclpy generates Action classes with this nesting structure::
+
+            <ActionModule>.<Action>.Goal
+            <ActionModule>.<Action>.Result
+            <ActionModule>.<Action>.Feedback
+            <ActionModule>.<Action>.Impl.SendGoalService.Request
+            <ActionModule>.<Action>.Impl.SendGoalService.Response
+            <ActionModule>.<Action>.Impl.GetResultService.Request
+            <ActionModule>.<Action>.Impl.GetResultService.Response
+            <ActionModule>.<Action>.Impl.FeedbackMessage
+
+        On the wire the client sends a flat name like
+        ``Fibonacci_SendGoal_Request``.  We split on ``_`` to recover
+        the Action name and the suffix, then walk the nested attrs.
+        """
+        try:
+            # Map flat suffixes to attribute paths inside Action.Impl.
+            # Longest suffixes first so "SendGoal_Request" is tried
+            # before "SendGoal".
+            IMPL_MAP = {
+                "SendGoal_Request":  ["Impl", "SendGoalService", "Request"],
+                "SendGoal_Response": ["Impl", "SendGoalService", "Response"],
+                "GetResult_Request":  ["Impl", "GetResultService", "Request"],
+                "GetResult_Response": ["Impl", "GetResultService", "Response"],
+                "FeedbackMessage":   ["Impl", "FeedbackMessage"],
+                # Service-class lookups (no _Request/_Response suffix).
+                # ros_service resolves the service CLASS, then accesses
+                # .Request / .Response internally.  The service class
+                # itself lives at Action.Impl.{SendGoal,GetResult}Service.
+                "SendGoal":  ["Impl", "SendGoalService"],
+                "GetResult": ["Impl", "GetResultService"],
+            }
+            # Direct sub-class suffixes (no Impl nesting).
+            DIRECT_MAP = {
+                "Goal": "Goal",
+                "Result": "Result",
+                "Feedback": "Feedback",
+            }
+
+            # Try each known suffix, longest first so that
+            # "SendGoal_Request" matches before "Goal".
+            for suffix, path in IMPL_MAP.items():
+                if class_name.endswith("_" + suffix):
+                    action_name = class_name[: -(len(suffix) + 1)]
+                    obj = getattr(action_module, action_name, None)
+                    for attr in path:
+                        if obj is None:
+                            break
+                        obj = getattr(obj, attr, None)
+                    return obj
+
+            for suffix, attr in DIRECT_MAP.items():
+                if class_name.endswith("_" + suffix):
+                    action_name = class_name[: -(len(suffix) + 1)]
+                    obj = getattr(action_module, action_name, None)
+                    if obj is not None:
+                        return getattr(obj, attr, None)
+
+            return None
+        except (AttributeError, TypeError):
             return None

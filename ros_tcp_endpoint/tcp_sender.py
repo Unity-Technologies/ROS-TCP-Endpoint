@@ -84,6 +84,24 @@ class UnityTcpSender:
             serialized_message = ClientThread.serialize_message(destination, response)
             self.queue.put(b"".join([serialized_header, serialized_message]))
 
+    def send_ros_service_response_raw(self, srv_id, destination, raw_cdr_bytes):
+        """Like send_ros_service_response but takes already-serialized CDR
+        bytes instead of a rclpy message object. Used by RosActionClient
+        which does its own serialize_message internally."""
+        if self.queue is not None:
+            command = SysCommand_Service()
+            command.srv_id = srv_id
+            serialized_header = ClientThread.serialize_command("__response", command)
+
+            import struct
+            dest_bytes = destination.encode("utf-8")
+            length = len(dest_bytes)
+            dest_info = struct.pack("<I%ss" % length, length, dest_bytes)
+            msg_length = struct.pack("<I", len(raw_cdr_bytes))
+            serialized_message = dest_info + msg_length + raw_cdr_bytes
+
+            self.queue.put(b"".join([serialized_header, serialized_message]))
+
     def send_unity_message(self, topic, message):
         if self.queue is not None:
             serialized_message = ClientThread.serialize_message(topic, message)

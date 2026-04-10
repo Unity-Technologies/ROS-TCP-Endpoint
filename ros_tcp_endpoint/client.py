@@ -159,6 +159,64 @@ class ClientThread(threading.Thread):
             service_thread.daemon = True
             service_thread.start()
 
+    def handle_action_request(self, srv_id, action_name, op, data):
+        """Route an action operation to the RosActionClient."""
+        client = self.tcp_server.action_clients_table.get(action_name)
+        if client is None:
+            error_msg = "Action client '{}' is not registered!".format(action_name)
+            self.tcp_server.send_unity_error(error_msg)
+            self.tcp_server.logerr(error_msg)
+            return
+
+        # Run in a thread to avoid blocking the read loop (action calls
+        # can take seconds to minutes).
+        t = threading.Thread(
+            target=self._action_call_thread,
+            args=(srv_id, action_name, op, data, client),
+            daemon=True)
+        t.start()
+
+    def _action_call_thread(self, srv_id, action_name, op, data, client):
+        """Execute the action operation and send the response back."""
+        response_data = None
+        try:
+            if op == "send_goal":
+                response_data = client.send_goal(data)
+            elif op == "get_result":
+                response_data = client.get_result(data)
+            elif op == "cancel_goal":
+                response_data = client.cancel_goal(data)
+            else:
+                self.tcp_server.logerr(
+                    "Unknown action op '{}' for '{}'".format(op, action_name))
+                return
+        except Exception as e:
+            self.tcp_server.logerr(
+                "Action {} {} failed: {}".format(action_name, op, e))
+            return
+
+        if response_data is None:
+            error_msg = "No response from action {} {}".format(action_name, op)
+            self.tcp_server.send_unity_error(error_msg)
+            self.tcp_server.logerr(error_msg)
+            return
+
+        # Send the CDR-serialized response back to the client. Use the _raw
+        # variant because response_data is already CDR bytes (the
+        # RosActionClient does its own serialize_message internally).
+        self.tcp_server.unity_tcp_sender.send_ros_service_response_raw(
+            srv_id, action_name, response_data)
+
+    def _handle_action_feedback(self, action_name, goal_uuid_hex, data):
+        """Route feedback CDR bytes to the matching RosActionServer."""
+        server = self.tcp_server.action_servers_table.get(action_name)
+        if server is None:
+            self.tcp_server.logerr(
+                "Action server '{}' not registered for feedback".format(action_name))
+            return
+        goal_uuid = bytes.fromhex(goal_uuid_hex)
+        server.publish_feedback(goal_uuid, data)
+
     def service_call_thread(self, srv_id, destination, data, ros_communicator):
         response = ros_communicator.send(data)
 
@@ -193,18 +251,32 @@ class ClientThread(threading.Thread):
             while not halt_event.is_set():
                 destination, data = self.read_message(self.conn)
 
-                # Process this message that was sent from Unity
-                if self.tcp_server.pending_srv_id is not None:
-                    # if we've been told that the next message will be a service request/response, process it as such
-                    if self.tcp_server.pending_srv_is_request:
-                        self.send_ros_service_request(
-                            self.tcp_server.pending_srv_id, destination, data
-                        )
-                    else:
-                        self.tcp_server.send_unity_service_response(
-                            self.tcp_server.pending_srv_id, data
-                        )
+                # Process this message that was sent from Unity.
+
+                # Check for pending action feedback (no srv_id involved).
+                action_op = getattr(self.tcp_server, "pending_action_op", None)
+                if action_op == "publish_feedback":
+                    action_name = self.tcp_server.pending_action_name
+                    goal_uuid_hex = getattr(self.tcp_server, "pending_action_goal_uuid", "")
+                    self.tcp_server.pending_action_op = None
+                    self.tcp_server.pending_action_name = None
+                    self.tcp_server.pending_action_goal_uuid = None
+                    self._handle_action_feedback(action_name, goal_uuid_hex, data)
+                elif self.tcp_server.pending_srv_id is not None:
+                    srv_id = self.tcp_server.pending_srv_id
                     self.tcp_server.pending_srv_id = None
+
+                    # Check if this is an action client request.
+                    action_op2 = getattr(self.tcp_server, "pending_action_op", None)
+                    action_name2 = getattr(self.tcp_server, "pending_action_name", None)
+                    if action_op2 is not None:
+                        self.tcp_server.pending_action_op = None
+                        self.tcp_server.pending_action_name = None
+                        self.handle_action_request(srv_id, action_name2, action_op2, data)
+                    elif self.tcp_server.pending_srv_is_request:
+                        self.send_ros_service_request(srv_id, destination, data)
+                    else:
+                        self.tcp_server.send_unity_service_response(srv_id, data)
                 elif destination == "":
                     # ignore this keepalive message, listen for more
                     pass
