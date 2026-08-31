@@ -44,6 +44,11 @@ class RosSubscriber(RosReceiver):
         self.queue_size = queue_size
 
         qos_profile = QoSProfile(depth=queue_size)
+        publishers_info = self.get_publishers_info_by_topic(topic)
+        if publishers_info:
+            pub_qos = publishers_info[0].qos_profile
+            qos_profile.durability = pub_qos.durability
+            qos_profile.reliability = pub_qos.reliability
 
         # Start Subscriber listener function
         self.subscription = self.create_subscription(
