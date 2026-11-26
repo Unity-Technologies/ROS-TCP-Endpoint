@@ -175,9 +175,12 @@ class TcpServer(Node):
 
     def unregister_node(self, old_node):
         if old_node is not None:
-            old_node.unregister()
+            # Out of the executor first: it spins on another thread, and a node that is
+            # destroyed while the executor still waits on it ends the whole process
+            # (InvalidHandle: cannot use Destroyable because destruction was requested).
             if self.executor is not None:
                 self.executor.remove_node(old_node)
+            old_node.unregister()
 
     def destroy_nodes(self):
         """
@@ -218,6 +221,14 @@ class SysCommands:
             return
 
         old_node = self.tcp_server.subscribers_table.get(topic)
+        if old_node is not None and old_node.msg is message_class:
+            # A client that connects again registers everything it had. The subscription
+            # that is there serves it; replacing it would destroy a node under the
+            # executor for nothing.
+            self.tcp_server.loginfo(
+                "RegisterSubscriber({}, {}) already registered".format(topic, message_class)
+            )
+            return
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 
@@ -245,6 +256,15 @@ class SysCommands:
             return
 
         old_node = self.tcp_server.publishers_table.get(topic)
+        if (
+            old_node is not None
+            and type(old_node.msg) is message_class
+            and old_node.queue_size == queue_size
+        ):
+            self.tcp_server.loginfo(
+                "RegisterPublisher({}, {}) already registered".format(topic, message_class)
+            )
+            return
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 
@@ -274,6 +294,11 @@ class SysCommands:
             return
 
         old_node = self.tcp_server.ros_services_table.get(topic)
+        if old_node is not None and type(old_node.req) is message_class.Request:
+            self.tcp_server.loginfo(
+                "RegisterRosService({}, {}) already registered".format(topic, message_class)
+            )
+            return
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 
@@ -304,6 +329,11 @@ class SysCommands:
             return
 
         old_node = self.tcp_server.unity_services_table.get(topic)
+        if old_node is not None and old_node.service_class is message_class:
+            self.tcp_server.loginfo(
+                "RegisterUnityService({}, {}) already registered".format(topic, message_class)
+            )
+            return
         if old_node is not None:
             self.tcp_server.unregister_node(old_node)
 

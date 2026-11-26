@@ -40,6 +40,7 @@ class RosPublisher(RosSender):
         node_name = f"{strippedTopic}_RosPublisher"
         RosSender.__init__(self, node_name)
         self.msg = message_class()
+        self.queue_size = queue_size
         self.pub = self.create_publisher(message_class, topic, queue_size)
 
     def send(self, data):

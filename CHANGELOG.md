@@ -22,6 +22,14 @@ Added Sonarqube scanner
 
 ### Fixed
 
+Registering a topic or service that is already registered with the same type keeps the node
+that is there. A Unity client that connects again registers everything it had, and each
+registration used to destroy and recreate its ROS node while the executor was spinning on
+another thread; now and then the executor met a node in the middle of its destruction and the
+endpoint process ended (`InvalidHandle: cannot use Destroyable because destruction was
+requested`). A node that does have to be replaced (another type, another queue size) is taken
+out of the executor before it is destroyed.
+
 
 ## [0.7.1] - 2026-08-24
 
